@@ -1,0 +1,18 @@
+[package]
+name = "codex-manager-launcher"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "codex-manager-launcher"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+codex-manager-core = { path = "../../crates/codex-manager-core" }
+serde_json.workspace = true
+
+[build-dependencies]
+winresource.workspace = true
+

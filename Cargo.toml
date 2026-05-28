@@ -1,0 +1,28 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/codex-manager-core",
+  "apps/codex-manager-launcher",
+  "apps/codex-manager/src-tauri",
+]
+
+[workspace.package]
+version = "1.0.0"
+edition = "2024"
+license = "MIT"
+
+[workspace.dependencies]
+anyhow = "1"
+directories = "6"
+reqwest = { version = "0.12", features = ["blocking", "json", "rustls-tls"], default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", features = ["custom-protocol"] }
+tauri-build = "2"
+tauri-plugin-dialog = "2"
+tempfile = "3"
+thiserror = "2"
+toml_edit = "0.22"
+tungstenite = "0.24"
+uuid = { version = "1", features = ["v4"] }
+winresource = "0.1"

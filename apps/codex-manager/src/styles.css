@@ -1,0 +1,556 @@
+:root {
+  color: #111;
+  background: #fff;
+  font-family: Inter, "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  min-height: 38px;
+  border: 1px solid #d8d8d8;
+  border-radius: 5px;
+  background: #fff;
+  color: #111;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 14px;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.52;
+  cursor: not-allowed;
+}
+
+input,
+select {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #d8d8d8;
+  border-radius: 4px;
+  padding: 0 12px;
+  background: #fff;
+  color: #111;
+  outline: none;
+}
+
+input:focus,
+select:focus {
+  border-color: #111;
+}
+
+label {
+  display: grid;
+  gap: 7px;
+  color: #222;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: 25px;
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+p,
+.profileText p,
+.sectionHead p,
+.remoteTitle span,
+.preview span {
+  color: #666;
+  font-size: 14px;
+}
+
+code,
+pre {
+  font-family: "Cascadia Code", Consolas, monospace;
+}
+
+.appShell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 196px minmax(0, 1fr);
+  background: #fff;
+}
+
+.side {
+  border-right: 1px solid #ddd;
+  padding: 32px 12px 10px;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+}
+
+.logoMark {
+  width: 38px;
+  height: 38px;
+  margin: 0 auto 42px;
+  border-radius: 9px;
+  background: #111;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 1px 7px rgba(0, 0, 0, .28);
+}
+
+.nav {
+  display: grid;
+  gap: 10px;
+}
+
+.nav button {
+  border: 0;
+  min-height: 44px;
+  justify-content: flex-start;
+  background: transparent;
+  border-radius: 3px;
+  padding: 0 10px;
+}
+
+.nav button.isActive {
+  background: #fafafa;
+  font-weight: 700;
+}
+
+.sideBottom {
+  margin-top: auto;
+  display: grid;
+  gap: 12px;
+}
+
+.blackButton,
+.primaryButton {
+  border-color: #000;
+  background: #000;
+  color: #fff;
+}
+
+.successButton {
+  border-color: #22c55e;
+  background: #22c55e;
+  color: #fff;
+  font-weight: 700;
+}
+
+.blackButton {
+  justify-content: flex-start;
+  min-height: 44px;
+  font-weight: 700;
+}
+
+.content {
+  min-width: 0;
+  padding: 40px;
+  display: grid;
+  gap: 22px;
+  align-content: start;
+}
+
+.notice {
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  padding: 10px 12px;
+}
+
+.notice.ok {
+  border-color: #86efac;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.notice.failed {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.card,
+.profileCard {
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  background: #fff;
+  padding: 24px;
+}
+
+.profileCard {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 26px;
+}
+
+.avatar {
+  width: 76px;
+  height: 76px;
+  border-radius: 12px;
+  background: #111;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .28);
+}
+
+.profileText {
+  display: grid;
+  gap: 7px;
+}
+
+.profileText h2 {
+  font-size: 21px;
+}
+
+.loginCard,
+.card {
+  display: grid;
+  gap: 16px;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.sectionHead > div {
+  display: grid;
+  gap: 9px;
+}
+
+.keySection {
+  display: grid;
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.keySection .sectionHead h1 {
+  margin-bottom: 24px;
+}
+
+.searchRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.remoteList {
+  display: grid;
+  gap: 12px;
+}
+
+.remoteItem {
+  min-height: 76px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  padding: 14px 18px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 16px;
+  background: #fff;
+}
+
+.remoteItem.active {
+  border: 2px solid #4caf50;
+  background: #eaf7ed;
+  color: #2e7d32;
+}
+
+.miniIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: #111;
+  color: #fff;
+}
+
+.remoteTitle {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.remoteTitle strong {
+  font-size: 17px;
+}
+
+.remoteTitle em {
+  margin-left: 10px;
+  font-style: normal;
+}
+
+.remoteItem code {
+  color: inherit;
+  font-size: 12px;
+}
+
+.useState {
+  border: 0;
+  background: transparent;
+  color: #666;
+  padding: 0 4px;
+}
+
+.useState span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ccc;
+}
+
+.useState.active span {
+  background: #666;
+}
+
+.buttonRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.settingsPanel {
+  width: min(824px, 100%);
+  display: grid;
+  gap: 0;
+}
+
+.settingsTitle {
+  display: grid;
+  gap: 12px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #ddd;
+}
+
+.settingsTitle span {
+  width: 32px;
+  height: 3px;
+  border-radius: 2px;
+  background: #111;
+}
+
+.settingRow {
+  min-height: 76px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 20px;
+  border-bottom: 1px solid #ddd;
+}
+
+.settingRow h2 {
+  font-size: 21px;
+  font-weight: 800;
+}
+
+.settingActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.switch {
+  width: 60px;
+  min-height: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 999px;
+  background: #ddd;
+  padding: 3px;
+  justify-content: flex-start;
+}
+
+.switch span {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform .18s ease;
+}
+
+.switch.isOn {
+  background: #111;
+}
+
+.switch.isOn span {
+  transform: translateX(28px);
+}
+
+.dangerButton {
+  width: fit-content;
+  border-color: #ef4444;
+  color: #b91c1c;
+}
+
+.previewGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+
+.preview {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto minmax(260px, 1fr);
+  gap: 10px;
+}
+
+.preview div {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-height: 48px;
+}
+
+.preview pre {
+  min-height: 260px;
+  max-height: min(52vh, 460px);
+  overflow: auto;
+  margin: 0;
+  border-radius: 5px;
+  background: #111;
+  color: #fff;
+  padding: 12px;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.restoreMeta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  color: #444;
+  font-size: 13px;
+}
+
+.restoreMeta span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.placeholder,
+.empty {
+  color: #666;
+}
+
+.empty {
+  padding: 20px;
+  border: 1px dashed #ddd;
+  border-radius: 5px;
+  text-align: center;
+}
+
+.loadingBox {
+  border-style: solid;
+  background: #fafafa;
+  color: #222;
+  font-weight: 600;
+}
+
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, .42);
+}
+
+.configModal {
+  width: min(1040px, 100%);
+  max-height: min(86vh, 860px);
+  overflow: auto;
+  border-radius: 6px;
+  background: #fff;
+  border: 1px solid #ddd;
+  padding: 22px;
+  display: grid;
+  gap: 16px;
+}
+
+.modalHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.modalHead > div {
+  display: grid;
+  gap: 6px;
+}
+
+@media (max-width: 900px) {
+  .appShell,
+  .formGrid,
+  .previewGrid,
+  .restoreMeta {
+    grid-template-columns: 1fr;
+  }
+
+  .side {
+    border-right: 0;
+    border-bottom: 1px solid #ddd;
+    padding: 18px;
+  }
+
+  .logoMark {
+    margin: 0 0 16px;
+  }
+
+  .profileCard,
+  .remoteItem,
+  .searchRow,
+  .settingRow {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+
+  .settingActions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+}

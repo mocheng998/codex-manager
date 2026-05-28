@@ -1,0 +1,60 @@
+name: Build Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: apps/codex-manager/package-lock.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend dependencies
+        working-directory: apps/codex-manager
+        run: npm ci
+
+      - name: Check frontend
+        working-directory: apps/codex-manager
+        run: npm run check
+
+      - name: Check Rust workspace
+        run: cargo check --workspace
+
+      - name: Build Windows bundle
+        if: runner.os == 'Windows'
+        working-directory: apps/codex-manager
+        run: npm run build:windows
+
+      - name: Build macOS bundle
+        if: runner.os == 'macOS'
+        working-directory: apps/codex-manager
+        run: npm run build:mac
+
+      - name: Upload bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-manager-${{ matrix.os }}
+          path: |
+            target/release/codex-manager*
+            target/release/codex-manager-launcher*
+            target/release/bundle/**
