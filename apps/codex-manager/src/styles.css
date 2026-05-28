@@ -382,6 +382,31 @@ pre {
   gap: 10px;
 }
 
+.pathRow {
+  align-items: start;
+  padding: 16px 0;
+}
+
+.pathInfo {
+  min-width: min(520px, 100%);
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+
+.pathInfo code {
+  max-width: min(620px, 52vw);
+  color: #222;
+  font-size: 12px;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.pathInfo span {
+  color: #666;
+  font-size: 13px;
+}
+
 .switch {
   width: 60px;
   min-height: 32px;
@@ -552,5 +577,15 @@ pre {
   .settingActions {
     width: 100%;
     flex-wrap: wrap;
+  }
+
+  .pathInfo {
+    min-width: 0;
+    justify-items: start;
+  }
+
+  .pathInfo code {
+    max-width: 100%;
+    text-align: left;
   }
 }

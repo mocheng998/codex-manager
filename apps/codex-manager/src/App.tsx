@@ -99,6 +99,13 @@ type ConfigViewResult = CommandResult<{
   backupAvailable: boolean;
 }>;
 
+type CodexPathResult = CommandResult<{
+  appDir: string;
+  executablePath: string;
+  version: string;
+  source: string;
+}>;
+
 type BackupPreviewResult = CommandResult<{
   backupPath: string;
   reason: string;
@@ -148,6 +155,7 @@ export function App() {
   const [decryptingId, setDecryptingId] = useState("");
   const [notice, setNotice] = useState<{ status: Status; message: string } | null>(null);
   const [configView, setConfigView] = useState<ConfigViewResult | null>(null);
+  const [codexPath, setCodexPath] = useState<CodexPathResult | null>(null);
   const [configModalOpen, setConfigModalOpen] = useState(false);
   const [restorePreview, setRestorePreview] = useState<BackupPreviewResult | null>(null);
   const [restoreModalOpen, setRestoreModalOpen] = useState(false);
@@ -163,6 +171,7 @@ export function App() {
   useEffect(() => {
     void refresh();
     void readConfig();
+    void detectCodexPath();
   }, []);
 
   useEffect(() => {
@@ -181,6 +190,7 @@ export function App() {
       baseUrl: result.settings.auth.baseUrl || current.baseUrl,
       loginMode: result.settings.auth.loginMode || "newApi",
     }));
+    await detectCodexPath();
   }
 
   async function login() {
@@ -298,6 +308,11 @@ export function App() {
     if (result) show(result);
   }
 
+  async function detectCodexPath() {
+    const result = await run(() => call<CodexPathResult>("detect_codex_path"));
+    setCodexPath(result);
+  }
+
   async function openConfigModal() {
     await readConfig();
     setConfigModalOpen(true);
@@ -320,6 +335,7 @@ export function App() {
       }),
     );
     if (result?.status === "ok") {
+      await detectCodexPath();
       setCodexLaunchState("started");
       show(result);
       return;
@@ -340,6 +356,7 @@ export function App() {
       }),
     );
     if (result?.status === "ok") {
+      await detectCodexPath();
       setCodexLaunchState("started");
       show(result);
       return;
@@ -571,6 +588,22 @@ export function App() {
             <button onClick={installCodex} type="button">
               安装
             </button>
+          </div>
+
+          <div className="settingRow pathRow">
+            <h2>Codex 位置</h2>
+            <div className="pathInfo">
+              <code>{codexPath?.executablePath || codexPath?.message || "未检测到 Codex 安装位置"}</code>
+              {codexPath?.status === "ok" ? (
+                <span>
+                  {codexPath.source || "auto"}
+                  {codexPath.version ? ` · ${codexPath.version}` : ""}
+                </span>
+              ) : null}
+              <button onClick={detectCodexPath} type="button">
+                重新检测
+              </button>
+            </div>
           </div>
 
           <div className="settingRow">

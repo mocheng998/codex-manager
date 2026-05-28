@@ -1,9 +1,9 @@
 use codex_manager_core::{
-    Account, AppSettings, BackupConfigPreview, CodexApplyResult, CodexConfigView, LaunchRequest,
-    LoginCredentials, LoginPayload, RemoteKeyDecryptPayload, RemoteKeySearchPayload, SettingsStore,
-    apply_account_to_codex, clear_codex_manager_config, launch_codex as launch_codex_core,
-    login_new_api, read_codex_view, read_latest_backup_preview,
-    restart_codex as restart_codex_core, restore_latest_backup,
+    Account, AppSettings, BackupConfigPreview, CodexApplyResult, CodexConfigView, CodexPathInfo,
+    LaunchRequest, LoginCredentials, LoginPayload, RemoteKeyDecryptPayload, RemoteKeySearchPayload,
+    SettingsStore, apply_account_to_codex, clear_codex_manager_config,
+    launch_codex as launch_codex_core, login_new_api, read_codex_view, read_latest_backup_preview,
+    resolve_codex_path, restart_codex as restart_codex_core, restore_latest_backup,
 };
 use serde::Serialize;
 
@@ -258,6 +258,18 @@ pub fn open_codex_install_page() -> CommandResult<serde_json::Value> {
     match open_external_url(url) {
         Ok(()) => ok("Codex 安装页面已打开", serde_json::json!({})),
         Err(error) => failed_payload("打开 Codex 安装页面失败", error),
+    }
+}
+
+#[tauri::command]
+pub fn detect_codex_path() -> CommandResult<CodexPathInfo> {
+    let saved = SettingsStore::default()
+        .load()
+        .map(|settings| settings.codex_app_path)
+        .unwrap_or_default();
+    match resolve_codex_path(Some(&saved)) {
+        Ok(payload) => ok("Codex 安装位置已检测", payload),
+        Err(error) => failed_payload("Codex 安装位置检测失败", error),
     }
 }
 

@@ -20,6 +20,7 @@ pub fn run() {
             commands::read_restore_preview,
             commands::read_codex_config,
             commands::open_codex_install_page,
+            commands::detect_codex_path,
             commands::launch_codex,
             commands::restart_codex
         ])
