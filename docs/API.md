@@ -362,7 +362,6 @@ CommandResult<Record<string, never>>
 - 优先使用用户保存的 `codexAppPath`
 - 其次使用 `CODEX_APP_PATH`
 - Windows 扫描 `C:\Program Files\WindowsApps\OpenAI.Codex_*` 并选择最高版本
-- Windows 回退到 `Get-AppxPackage -Name OpenAI.Codex`
 - Windows 再回退到常见本地安装目录
 - macOS 扫描 `/Applications` 和 `~/Applications`
 
@@ -380,6 +379,7 @@ CommandResult<{
   executablePath: string;
   version: string;
   source: string;
+  appUserModelId: string;
 }>
 ```
 

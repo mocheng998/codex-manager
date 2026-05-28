@@ -1,7 +1,7 @@
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, bail};
+use anyhow::bail;
 use serde::Serialize;
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -11,6 +11,7 @@ pub struct CodexPathInfo {
     pub executable_path: String,
     pub version: String,
     pub source: String,
+    pub app_user_model_id: String,
 }
 
 pub fn resolve_codex_path(saved_app_path: Option<&str>) -> anyhow::Result<CodexPathInfo> {
@@ -33,9 +34,6 @@ pub fn resolve_codex_path(saved_app_path: Option<&str>) -> anyhow::Result<CodexP
     #[cfg(windows)]
     {
         if let Some(info) = find_latest_codex_windows_app_dir_default() {
-            return Ok(info);
-        }
-        if let Some(info) = find_windows_appx_package()? {
             return Ok(info);
         }
         if let Some(info) = find_windows_common_install() {
@@ -99,12 +97,37 @@ pub fn normalize_codex_app_path(path: &Path, source: &str) -> Option<CodexPathIn
 }
 
 fn info_from_app_dir(app_dir: PathBuf, executable_path: PathBuf, source: &str) -> CodexPathInfo {
+    let app_user_model_id = packaged_app_user_model_id(&app_dir).unwrap_or_default();
     CodexPathInfo {
         version: codex_app_version(&app_dir).unwrap_or_default(),
         app_dir: app_dir.to_string_lossy().to_string(),
         executable_path: executable_path.to_string_lossy().to_string(),
         source: source.to_string(),
+        app_user_model_id,
     }
+}
+
+pub fn packaged_app_user_model_id(app_dir: &Path) -> Option<String> {
+    let package_name = package_name_from_app_dir(app_dir)?;
+    if !package_name.starts_with("OpenAI.Codex_") || !package_name.contains("__") {
+        return None;
+    }
+    let identity_name = package_name.split_once('_')?.0;
+    let publisher_id = package_name.rsplit_once("__")?.1;
+    if publisher_id.is_empty() {
+        return None;
+    }
+    Some(format!("{identity_name}_{publisher_id}!App"))
+}
+
+fn package_name_from_app_dir(app_dir: &Path) -> Option<String> {
+    let path = app_dir.to_string_lossy().replace('\\', "/");
+    let mut parts = path.split('/').filter(|part| !part.is_empty());
+    let mut package_name = parts.next_back()?;
+    if package_name.eq_ignore_ascii_case("app") {
+        package_name = parts.next_back()?;
+    }
+    Some(package_name.to_string())
 }
 
 fn codex_app_version(app_dir: &Path) -> Option<String> {
@@ -185,36 +208,6 @@ fn windows_app_package_roots() -> Vec<PathBuf> {
     roots.sort();
     roots.dedup();
     roots
-}
-
-#[cfg(windows)]
-fn find_windows_appx_package() -> anyhow::Result<Option<CodexPathInfo>> {
-    let mut command = std::process::Command::new("powershell.exe");
-    command.args([
-        "-NoProfile",
-        "-WindowStyle",
-        "Hidden",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-Command",
-        "$pkg = Get-AppxPackage -Name OpenAI.Codex -ErrorAction SilentlyContinue; if (-not $pkg) { $pkg = Get-AppxPackage -ErrorAction SilentlyContinue | Where-Object { $_.PackageFullName -like 'OpenAI.Codex_*' } | Sort-Object Version -Descending | Select-Object -First 1 }; if ($pkg) { $pkg.InstallLocation }",
-    ]);
-    use std::os::windows::process::CommandExt;
-    command.creation_flags(0x08000000);
-    let output = command
-        .output()
-        .context("failed to query Codex Appx package")?;
-    if !output.status.success() {
-        return Ok(None);
-    }
-    let install_location = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if install_location.is_empty() {
-        return Ok(None);
-    }
-    Ok(normalize_codex_app_path(
-        &PathBuf::from(install_location),
-        "AppxPackage",
-    ))
 }
 
 #[cfg(windows)]

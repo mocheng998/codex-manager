@@ -104,6 +104,7 @@ type CodexPathResult = CommandResult<{
   executablePath: string;
   version: string;
   source: string;
+  appUserModelId: string;
 }>;
 
 type BackupPreviewResult = CommandResult<{
