@@ -294,14 +294,23 @@ export function App() {
   }
 
   async function togglePlugin() {
+    if (codexLaunchState === "starting" || codexLaunchState === "restarting") return;
     const next = { ...settings, pluginEnabled: !settings.pluginEnabled };
     setSettings(next);
+    if (next.pluginEnabled) {
+      setNotice({ status: "ok", message: "解锁插件会重启 Codex，正在保存设置..." });
+    }
     const result = await run(() => call<SettingsResult>("save_settings", { settings: next }));
     if (!result) return;
     setSettings(result.settings);
+    if (result.settings.pluginEnabled) {
+      setNotice({ status: "ok", message: "解锁插件会重启 Codex，正在重启..." });
+      await restartCodex(result.settings, "插件解锁已启用，Codex 已重启");
+      return;
+    }
     show({
       status: result.status,
-      message: result.settings.pluginEnabled ? "插件解锁已启用" : "插件解锁已停用",
+      message: "插件解锁已停用",
     });
   }
 
@@ -355,13 +364,14 @@ export function App() {
     if (result) show(result);
   }
 
-  async function restartCodex() {
+  async function restartCodex(settingsOverride = settings, successMessage?: string) {
     if (codexLaunchState === "starting" || codexLaunchState === "restarting") return;
+    const launchSettings = settingsOverride;
     setCodexLaunchState("restarting");
     const result = await run(() =>
       call<CommandResult<Record<string, never>>>("restart_codex", {
         request: {
-          codexAppPath: settings.codexAppPath,
+          codexAppPath: launchSettings.codexAppPath,
           extraArgs: [],
         },
       }),
@@ -369,7 +379,7 @@ export function App() {
     if (result?.status === "ok") {
       await detectCodexPath();
       setCodexLaunchState("started");
-      show(result);
+      show({ status: result.status, message: successMessage || result.message });
       return;
     }
     setCodexLaunchState("idle");
@@ -407,7 +417,7 @@ export function App() {
           </button>
         </nav>
         <div className="sideBottom">
-          <button className="blackButton" onClick={restartCodex} type="button" disabled={codexLaunchState === "restarting"}>
+          <button className="blackButton" onClick={() => restartCodex()} type="button" disabled={codexLaunchState === "restarting"}>
             {codexLaunchState === "restarting" ? "重启中" : "重启"}
           </button>
           <button className="blackButton" onClick={() => setRoute("account")} type="button">
@@ -588,7 +598,7 @@ export function App() {
               >
                 {codexLaunchState === "starting" ? "启动中..." : codexLaunchState === "started" ? "已启动" : "启动"}
               </button>
-              <button onClick={restartCodex} type="button" disabled={codexLaunchState === "starting" || codexLaunchState === "restarting"}>
+              <button onClick={() => restartCodex()} type="button" disabled={codexLaunchState === "starting" || codexLaunchState === "restarting"}>
                 {codexLaunchState === "restarting" ? "重启中..." : "重启"}
               </button>
             </div>
@@ -626,6 +636,7 @@ export function App() {
             <button
               aria-label="解锁插件"
               className={`switch ${settings.pluginEnabled ? "isOn" : ""}`}
+              disabled={codexLaunchState === "starting" || codexLaunchState === "restarting"}
               onClick={togglePlugin}
               type="button"
             >
