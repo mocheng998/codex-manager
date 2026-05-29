@@ -36,6 +36,12 @@ pub fn resolve_codex_path(saved_app_path: Option<&str>) -> anyhow::Result<CodexP
         if let Some(info) = find_windows_package_manager_codex() {
             return Ok(info);
         }
+        if let Some(info) = find_windows_appmodel_runtime_codex() {
+            return Ok(info);
+        }
+        if let Some(info) = find_windows_registry_codex() {
+            return Ok(info);
+        }
         if let Some(info) = find_latest_codex_windows_app_dir_default() {
             return Ok(info);
         }
@@ -96,6 +102,10 @@ pub fn normalize_codex_app_path(path: &Path, source: &str) -> Option<CodexPathIn
         return Some(info_from_app_dir(nested_app, lower, source));
     }
 
+    if let Some(app_dir) = packaged_app_dir_from_path(path) {
+        return Some(info_from_packaged_app_dir(app_dir, source));
+    }
+
     None
 }
 
@@ -110,9 +120,41 @@ fn info_from_app_dir(app_dir: PathBuf, executable_path: PathBuf, source: &str) -
     }
 }
 
+fn info_from_packaged_app_dir(app_dir: PathBuf, source: &str) -> CodexPathInfo {
+    let executable_path = packaged_codex_executable_path(&app_dir);
+    info_from_app_dir(app_dir, executable_path, source)
+}
+
+fn packaged_app_dir_from_path(path: &Path) -> Option<PathBuf> {
+    let package_name = package_name_from_app_dir(path)?;
+    if !is_openai_codex_package_name(&package_name) {
+        return None;
+    }
+    if path
+        .file_name()
+        .and_then(OsStr::to_str)
+        .is_some_and(|name| name.eq_ignore_ascii_case("app"))
+    {
+        return Some(path.to_path_buf());
+    }
+    Some(path.join("app"))
+}
+
+fn packaged_codex_executable_path(app_dir: &Path) -> PathBuf {
+    let upper = app_dir.join("Codex.exe");
+    if upper.exists() {
+        return upper;
+    }
+    let lower = app_dir.join("codex.exe");
+    if lower.exists() {
+        return lower;
+    }
+    upper
+}
+
 pub fn packaged_app_user_model_id(app_dir: &Path) -> Option<String> {
     let package_name = package_name_from_app_dir(app_dir)?;
-    if !package_name.starts_with("OpenAI.Codex_") || !package_name.contains("__") {
+    if !is_openai_codex_package_name(&package_name) {
         return None;
     }
     let identity_name = package_name.split_once('_')?.0;
@@ -131,6 +173,10 @@ fn package_name_from_app_dir(app_dir: &Path) -> Option<String> {
         package_name = parts.next_back()?;
     }
     Some(package_name.to_string())
+}
+
+fn is_openai_codex_package_name(name: &str) -> bool {
+    name.starts_with("OpenAI.Codex_") && name.contains("__")
 }
 
 fn codex_app_version(app_dir: &Path) -> Option<String> {
@@ -212,6 +258,282 @@ fn find_windows_package_manager_codex() -> Option<CodexPathInfo> {
     }
 
     best.map(|(_, info)| info)
+}
+
+#[cfg(windows)]
+fn find_windows_appmodel_runtime_codex() -> Option<CodexPathInfo> {
+    use windows::Win32::Foundation::{ERROR_INSUFFICIENT_BUFFER, ERROR_SUCCESS};
+    use windows::Win32::Storage::Packaging::Appx::GetPackagesByPackageFamily;
+    use windows::core::{PCWSTR, PWSTR};
+
+    const CODEX_PACKAGE_FAMILY: &str = "OpenAI.Codex_2p2nqsd0c76g0";
+
+    unsafe {
+        let family = wide_null(CODEX_PACKAGE_FAMILY);
+        let mut count = 0_u32;
+        let mut buffer_length = 0_u32;
+        let first = GetPackagesByPackageFamily(
+            PCWSTR(family.as_ptr()),
+            &mut count,
+            None,
+            &mut buffer_length,
+            PWSTR::null(),
+        );
+        if first != ERROR_INSUFFICIENT_BUFFER && first != ERROR_SUCCESS {
+            return None;
+        }
+        if count == 0 {
+            return None;
+        }
+
+        let mut package_name_buffer = vec![0_u16; buffer_length as usize];
+        let mut package_name_ptrs = vec![PWSTR::null(); count as usize];
+        let second = GetPackagesByPackageFamily(
+            PCWSTR(family.as_ptr()),
+            &mut count,
+            Some(package_name_ptrs.as_mut_ptr()),
+            &mut buffer_length,
+            PWSTR(package_name_buffer.as_mut_ptr()),
+        );
+        if second != ERROR_SUCCESS {
+            return None;
+        }
+
+        package_name_ptrs
+            .into_iter()
+            .filter_map(|name| pwstr_to_string(name))
+            .filter_map(|full_name| package_path_by_full_name(&full_name))
+            .filter_map(|path| normalize_codex_app_path(Path::new(&path), "AppModelRuntime"))
+            .max_by(|left, right| {
+                version_tuple(
+                    Path::new(&left.app_dir)
+                        .parent()
+                        .unwrap_or(Path::new(&left.app_dir)),
+                )
+                .cmp(&version_tuple(
+                    Path::new(&right.app_dir)
+                        .parent()
+                        .unwrap_or(Path::new(&right.app_dir)),
+                ))
+            })
+    }
+}
+
+#[cfg(windows)]
+fn package_path_by_full_name(full_name: &str) -> Option<String> {
+    use windows::Win32::Foundation::{ERROR_INSUFFICIENT_BUFFER, ERROR_SUCCESS};
+    use windows::Win32::Storage::Packaging::Appx::GetPackagePathByFullName;
+    use windows::core::{PCWSTR, PWSTR};
+
+    unsafe {
+        let full_name = wide_null(full_name);
+        let mut path_length = 0_u32;
+        let first =
+            GetPackagePathByFullName(PCWSTR(full_name.as_ptr()), &mut path_length, PWSTR::null());
+        if first != ERROR_INSUFFICIENT_BUFFER && first != ERROR_SUCCESS {
+            return None;
+        }
+        if path_length == 0 {
+            return None;
+        }
+        let mut path = vec![0_u16; path_length as usize];
+        let second = GetPackagePathByFullName(
+            PCWSTR(full_name.as_ptr()),
+            &mut path_length,
+            PWSTR(path.as_mut_ptr()),
+        );
+        if second != ERROR_SUCCESS {
+            return None;
+        }
+        wide_slice_to_string(&path)
+    }
+}
+
+#[cfg(windows)]
+fn find_windows_registry_codex() -> Option<CodexPathInfo> {
+    use windows::Win32::System::Registry::{HKEY_CURRENT_USER, KEY_READ};
+
+    const PACKAGES_KEY: &str = r"Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\Repository\Packages";
+
+    enumerate_registry_subkeys(HKEY_CURRENT_USER, PACKAGES_KEY, KEY_READ)
+        .into_iter()
+        .filter(|name| is_openai_codex_package_name(name))
+        .filter_map(|name| {
+            let subkey = format!(r"{PACKAGES_KEY}\{name}");
+            read_registry_string(HKEY_CURRENT_USER, &subkey, "PackageRootFolder")
+        })
+        .filter_map(|path| normalize_codex_app_path(Path::new(&path), "Registry"))
+        .max_by(|left, right| {
+            version_tuple(
+                Path::new(&left.app_dir)
+                    .parent()
+                    .unwrap_or(Path::new(&left.app_dir)),
+            )
+            .cmp(&version_tuple(
+                Path::new(&right.app_dir)
+                    .parent()
+                    .unwrap_or(Path::new(&right.app_dir)),
+            ))
+        })
+}
+
+#[cfg(windows)]
+fn enumerate_registry_subkeys(
+    root: windows::Win32::System::Registry::HKEY,
+    subkey: &str,
+    access: windows::Win32::System::Registry::REG_SAM_FLAGS,
+) -> Vec<String> {
+    use windows::Win32::Foundation::{ERROR_NO_MORE_ITEMS, ERROR_SUCCESS};
+    use windows::Win32::System::Registry::{HKEY, RegEnumKeyExW, RegOpenKeyExW};
+    use windows::core::{PCWSTR, PWSTR};
+
+    unsafe {
+        let mut key = HKEY::default();
+        if RegOpenKeyExW(
+            root,
+            PCWSTR(wide_null(subkey).as_ptr()),
+            0,
+            access,
+            &mut key,
+        ) != ERROR_SUCCESS
+        {
+            return Vec::new();
+        }
+        let _guard = RegistryKeyGuard(key);
+        let mut names = Vec::new();
+        let mut index = 0_u32;
+        loop {
+            let mut buffer = vec![0_u16; 512];
+            let mut len = buffer.len() as u32;
+            let result = RegEnumKeyExW(
+                key,
+                index,
+                PWSTR(buffer.as_mut_ptr()),
+                &mut len,
+                None,
+                PWSTR::null(),
+                None,
+                None,
+            );
+            if result == ERROR_NO_MORE_ITEMS {
+                break;
+            }
+            if result == ERROR_SUCCESS {
+                if let Some(name) = wide_slice_to_string(&buffer[..len as usize]) {
+                    names.push(name);
+                }
+            }
+            index += 1;
+        }
+        names
+    }
+}
+
+#[cfg(windows)]
+fn read_registry_string(
+    root: windows::Win32::System::Registry::HKEY,
+    subkey: &str,
+    name: &str,
+) -> Option<String> {
+    use windows::Win32::Foundation::ERROR_SUCCESS;
+    use windows::Win32::System::Registry::{
+        HKEY, KEY_READ, REG_SZ, RegOpenKeyExW, RegQueryValueExW,
+    };
+    use windows::core::PCWSTR;
+
+    unsafe {
+        let mut key = HKEY::default();
+        if RegOpenKeyExW(
+            root,
+            PCWSTR(wide_null(subkey).as_ptr()),
+            0,
+            KEY_READ,
+            &mut key,
+        ) != ERROR_SUCCESS
+        {
+            return None;
+        }
+        let _guard = RegistryKeyGuard(key);
+        let mut value_type = REG_SZ;
+        let mut byte_len = 0_u32;
+        if RegQueryValueExW(
+            key,
+            PCWSTR(wide_null(name).as_ptr()),
+            None,
+            Some(&mut value_type),
+            None,
+            Some(&mut byte_len),
+        ) != ERROR_SUCCESS
+        {
+            return None;
+        }
+        if byte_len == 0 {
+            return None;
+        }
+        let mut buffer = vec![0_u16; (byte_len as usize).div_ceil(2)];
+        if RegQueryValueExW(
+            key,
+            PCWSTR(wide_null(name).as_ptr()),
+            None,
+            Some(&mut value_type),
+            Some(buffer.as_mut_ptr().cast::<u8>()),
+            Some(&mut byte_len),
+        ) != ERROR_SUCCESS
+        {
+            return None;
+        }
+        wide_slice_to_string(&buffer)
+    }
+}
+
+#[cfg(windows)]
+fn wide_null(value: impl AsRef<std::ffi::OsStr>) -> Vec<u16> {
+    use std::os::windows::ffi::OsStrExt;
+    value
+        .as_ref()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect()
+}
+
+#[cfg(windows)]
+fn pwstr_to_string(value: windows::core::PWSTR) -> Option<String> {
+    if value.is_null() {
+        return None;
+    }
+    unsafe {
+        let mut len = 0_usize;
+        while *value.0.add(len) != 0 {
+            len += 1;
+        }
+        wide_slice_to_string(std::slice::from_raw_parts(value.0, len))
+    }
+}
+
+#[cfg(windows)]
+fn wide_slice_to_string(value: &[u16]) -> Option<String> {
+    use std::os::windows::ffi::OsStringExt;
+    let len = value.iter().position(|ch| *ch == 0).unwrap_or(value.len());
+    if len == 0 {
+        return None;
+    }
+    Some(
+        std::ffi::OsString::from_wide(&value[..len])
+            .to_string_lossy()
+            .to_string(),
+    )
+}
+
+#[cfg(windows)]
+struct RegistryKeyGuard(windows::Win32::System::Registry::HKEY);
+
+#[cfg(windows)]
+impl Drop for RegistryKeyGuard {
+    fn drop(&mut self) {
+        unsafe {
+            let _ = windows::Win32::System::Registry::RegCloseKey(self.0);
+        }
+    }
 }
 
 #[cfg(windows)]
@@ -380,4 +702,43 @@ fn version_tuple(path: &Path) -> Option<Vec<u32>> {
         .collect::<Result<Vec<_>, _>>()
         .ok()?;
     (!parts.is_empty()).then_some(parts)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::{normalize_codex_app_path, packaged_app_user_model_id};
+
+    #[test]
+    fn normalizes_packaged_codex_directory_without_reading_executable() {
+        let root = Path::new(
+            r"C:\Program Files\WindowsApps\OpenAI.Codex_26.519.5221.0_x64__2p2nqsd0c76g0",
+        );
+
+        let info = normalize_codex_app_path(root, "test").expect("package path should resolve");
+
+        assert!(
+            info.app_dir
+                .ends_with(r"OpenAI.Codex_26.519.5221.0_x64__2p2nqsd0c76g0\app")
+        );
+        assert!(
+            info.executable_path
+                .ends_with(r"OpenAI.Codex_26.519.5221.0_x64__2p2nqsd0c76g0\app\Codex.exe")
+        );
+        assert_eq!(info.version, "26.519.5221.0");
+        assert_eq!(info.app_user_model_id, "OpenAI.Codex_2p2nqsd0c76g0!App");
+    }
+
+    #[test]
+    fn builds_packaged_activation_id_from_nested_app_directory() {
+        let app_dir = Path::new(
+            r"C:\Program Files\WindowsApps\OpenAI.Codex_26.519.5221.0_x64__2p2nqsd0c76g0\app",
+        );
+
+        assert_eq!(
+            packaged_app_user_model_id(app_dir).as_deref(),
+            Some("OpenAI.Codex_2p2nqsd0c76g0!App")
+        );
+    }
 }

@@ -357,11 +357,13 @@ CommandResult<Record<string, never>>
 
 ### detect_codex_path
 
-检测当前电脑上的 Codex 安装位置。V1.0.3 起参考 CodexPlusPlus 的路径解析路线：
+检测当前电脑上的 Codex 安装位置。V1.0.4 起参考 CodexPlusPlus 的路径解析路线：
 
 - 优先使用用户保存的 `codexAppPath`
 - 其次使用 `CODEX_APP_PATH`
 - Windows 优先通过原生 `PackageManager` 查询 `OpenAI.Codex` 的 AppX/MSIX 安装位置
+- Windows 再通过原生 AppModel Runtime API 按包族名解析安装目录
+- Windows 再读取当前用户 AppModel Repository 注册表中的 `PackageRootFolder`
 - Windows 再扫描 `C:\Program Files\WindowsApps\OpenAI.Codex_*` 并选择最高版本
 - Windows 再回退到常见本地安装目录
 - macOS 扫描 `/Applications` 和 `~/Applications`

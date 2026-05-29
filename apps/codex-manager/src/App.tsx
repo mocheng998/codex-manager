@@ -157,6 +157,7 @@ export function App() {
   const [notice, setNotice] = useState<{ status: Status; message: string } | null>(null);
   const [configView, setConfigView] = useState<ConfigViewResult | null>(null);
   const [codexPath, setCodexPath] = useState<CodexPathResult | null>(null);
+  const [codexPathChecking, setCodexPathChecking] = useState(false);
   const [configModalOpen, setConfigModalOpen] = useState(false);
   const [restorePreview, setRestorePreview] = useState<BackupPreviewResult | null>(null);
   const [restoreModalOpen, setRestoreModalOpen] = useState(false);
@@ -310,8 +311,17 @@ export function App() {
   }
 
   async function detectCodexPath() {
-    const result = await run(() => call<CodexPathResult>("detect_codex_path"));
-    setCodexPath(result);
+    setCodexPathChecking(true);
+    setNotice({ status: "ok", message: "正在检测 Codex 安装位置..." });
+    try {
+      const result = await run(() => call<CodexPathResult>("detect_codex_path"));
+      if (result) {
+        setCodexPath(result);
+        show(result);
+      }
+    } finally {
+      setCodexPathChecking(false);
+    }
   }
 
   async function openConfigModal() {
@@ -594,15 +604,19 @@ export function App() {
           <div className="settingRow pathRow">
             <h2>Codex 位置</h2>
             <div className="pathInfo">
-              <code>{codexPath?.executablePath || codexPath?.message || "未检测到 Codex 安装位置"}</code>
+              <code>
+                {codexPathChecking
+                  ? "正在检测 Codex 安装位置..."
+                  : codexPath?.executablePath || codexPath?.message || "未检测到 Codex 安装位置"}
+              </code>
               {codexPath?.status === "ok" ? (
                 <span>
                   {codexPath.source || "auto"}
                   {codexPath.version ? ` · ${codexPath.version}` : ""}
                 </span>
               ) : null}
-              <button onClick={detectCodexPath} type="button">
-                重新检测
+              <button onClick={detectCodexPath} type="button" disabled={codexPathChecking}>
+                <RefreshCw size={14} /> {codexPathChecking ? "检测中..." : "重新检测"}
               </button>
             </div>
           </div>
