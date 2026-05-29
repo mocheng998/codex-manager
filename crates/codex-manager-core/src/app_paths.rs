@@ -33,6 +33,9 @@ pub fn resolve_codex_path(saved_app_path: Option<&str>) -> anyhow::Result<CodexP
 
     #[cfg(windows)]
     {
+        if let Some(info) = find_windows_package_manager_codex() {
+            return Ok(info);
+        }
         if let Some(info) = find_latest_codex_windows_app_dir_default() {
             return Ok(info);
         }
@@ -155,6 +158,96 @@ fn codex_package_version(package_dir: &Path) -> Option<String> {
     let rest = name.strip_prefix("OpenAI.Codex_")?;
     let version = rest.split_once('_')?.0;
     (!version.is_empty()).then(|| version.to_string())
+}
+
+#[cfg(windows)]
+fn find_windows_package_manager_codex() -> Option<CodexPathInfo> {
+    let manager = windows::Management::Deployment::PackageManager::new().ok()?;
+    let packages = manager.FindPackages().ok()?;
+    let mut best: Option<(Vec<u32>, CodexPathInfo)> = None;
+
+    for package in packages {
+        let Some(id) = package.Id().ok() else {
+            continue;
+        };
+        let Some(name) = id.Name().ok().map(|value| value.to_string()) else {
+            continue;
+        };
+        if name != "OpenAI.Codex" {
+            continue;
+        }
+
+        let Some(install_path) = package_installed_path(&package) else {
+            continue;
+        };
+        let Some(mut info) = normalize_codex_app_path(Path::new(&install_path), "PackageManager")
+        else {
+            continue;
+        };
+        if info.version.is_empty() {
+            if let Ok(version) = id.Version() {
+                info.version = package_version_string(version);
+            }
+        }
+
+        let version = id
+            .Version()
+            .ok()
+            .map(package_version_tuple)
+            .or_else(|| {
+                version_tuple(
+                    Path::new(&info.app_dir)
+                        .parent()
+                        .unwrap_or(Path::new(&info.app_dir)),
+                )
+            })
+            .unwrap_or_default();
+
+        if best
+            .as_ref()
+            .is_none_or(|(best_version, _)| version > *best_version)
+        {
+            best = Some((version, info));
+        }
+    }
+
+    best.map(|(_, info)| info)
+}
+
+#[cfg(windows)]
+fn package_installed_path(package: &windows::ApplicationModel::Package) -> Option<String> {
+    package
+        .InstalledPath()
+        .ok()
+        .map(|path| path.to_string())
+        .filter(|path| !path.trim().is_empty())
+        .or_else(|| {
+            package
+                .InstalledLocation()
+                .ok()?
+                .Path()
+                .ok()
+                .map(|path| path.to_string())
+                .filter(|path| !path.trim().is_empty())
+        })
+}
+
+#[cfg(windows)]
+fn package_version_tuple(version: windows::ApplicationModel::PackageVersion) -> Vec<u32> {
+    vec![
+        version.Major as u32,
+        version.Minor as u32,
+        version.Build as u32,
+        version.Revision as u32,
+    ]
+}
+
+#[cfg(windows)]
+fn package_version_string(version: windows::ApplicationModel::PackageVersion) -> String {
+    format!(
+        "{}.{}.{}.{}",
+        version.Major, version.Minor, version.Build, version.Revision
+    )
 }
 
 #[cfg(windows)]
