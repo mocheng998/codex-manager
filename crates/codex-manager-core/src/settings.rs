@@ -87,7 +87,7 @@ pub struct AppSettings {
     pub codex_app_path: String,
     pub active_account_id: String,
     pub launch_extra_args: Vec<String>,
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub plugin_enabled: bool,
     #[serde(default)]
     pub auth: AuthState,
@@ -100,7 +100,7 @@ impl Default for AppSettings {
             codex_app_path: String::new(),
             active_account_id: String::new(),
             launch_extra_args: Vec::new(),
-            plugin_enabled: true,
+            plugin_enabled: false,
             auth: AuthState::default(),
             accounts: Vec::new(),
         }
@@ -220,6 +220,34 @@ pub fn normalize_api_key(value: impl AsRef<str>) -> String {
     }
 }
 
-fn default_true() -> bool {
-    true
+#[cfg(test)]
+mod tests {
+    use super::AppSettings;
+
+    #[test]
+    fn plugin_unlock_is_disabled_by_default() {
+        assert!(!AppSettings::default().plugin_enabled);
+    }
+
+    #[test]
+    fn missing_plugin_unlock_setting_defaults_to_disabled() {
+        let settings: AppSettings = serde_json::from_str(
+            r#"{
+              "codexAppPath": "",
+              "activeAccountId": "",
+              "launchExtraArgs": [],
+              "auth": {
+                "loginMode": "newApi",
+                "baseUrl": "https://yiciyuan.one",
+                "user": null,
+                "cookies": [],
+                "updatedAtMs": 0
+              },
+              "accounts": []
+            }"#,
+        )
+        .expect("settings should deserialize");
+
+        assert!(!settings.plugin_enabled);
+    }
 }

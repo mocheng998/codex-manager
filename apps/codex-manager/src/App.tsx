@@ -133,7 +133,7 @@ const emptySettings: AppSettings = {
   codexAppPath: "",
   activeAccountId: "",
   launchExtraArgs: [],
-  pluginEnabled: true,
+  pluginEnabled: false,
   auth: defaultAuth,
   accounts: [],
 };
