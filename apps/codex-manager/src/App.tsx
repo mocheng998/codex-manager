@@ -3,14 +3,19 @@ import {
   FileText,
   KeyRound,
   LogOut,
+  Pencil,
   Play,
+  Plus,
   RefreshCw,
   RotateCcw,
   Search,
   Settings,
   ShoppingBag,
+  Trash2,
   UserRound,
+  X,
 } from "lucide-react";
+import type { JSX } from "react";
 import { useEffect, useMemo, useState } from "react";
 
 type Status = "ok" | "failed" | string;
@@ -118,8 +123,15 @@ type BackupPreviewResult = CommandResult<{
   authJson: string;
 }>;
 
-type Route = "account" | "market" | "settings";
+type Route = "account" | "keys" | "market" | "settings";
 type CodexLaunchState = "idle" | "starting" | "started" | "restarting";
+
+type ManualKeyForm = {
+  id: string;
+  name: string;
+  baseUrl: string;
+  apiKey: string;
+};
 
 const defaultAuth: AuthState = {
   loginMode: "newApi",
@@ -145,11 +157,20 @@ const blankLogin = {
   password: "",
 };
 
+const blankManualKey: ManualKeyForm = {
+  id: "",
+  name: "",
+  baseUrl: "https://api.openai.com/v1",
+  apiKey: "",
+};
+
 export function App() {
-  const [route, setRoute] = useState<Route>("account");
+  const [route, setRoute] = useState<Route>("keys");
   const [settings, setSettings] = useState<AppSettings>(emptySettings);
   const [settingsPath, setSettingsPath] = useState("");
   const [loginForm, setLoginForm] = useState(blankLogin);
+  const [manualKeyForm, setManualKeyForm] = useState<ManualKeyForm>(blankManualKey);
+  const [manualKeySaving, setManualKeySaving] = useState(false);
   const [remoteKeyword, setRemoteKeyword] = useState("");
   const [remoteKeys, setRemoteKeys] = useState<RemoteToken[]>([]);
   const [remoteKeysLoading, setRemoteKeysLoading] = useState(false);
@@ -228,7 +249,7 @@ export function App() {
     }
   }
 
-  async function useRemoteKey(item: RemoteToken) {
+  async function importRemoteKey(item: RemoteToken, activate: boolean) {
     if (!item.id) return;
     setDecryptingId(item.id);
     const result = await run(() =>
@@ -248,12 +269,119 @@ export function App() {
     };
     const saved = await run(() =>
       call<SettingsResult>("upsert_account", {
-        request: { account, activate: true },
+        request: { account, activate },
       }),
     );
     if (!saved) return;
     setSettings(saved.settings);
+    if (activate) {
+      await activateAccount(account.id, true);
+    } else {
+      show({ status: "ok", message: `已同步 ${account.name} 到 KEY 管理` });
+    }
+  }
+
+  async function syncAllRemoteKeys() {
+    if (!user || !remoteKeys.length) return;
+    let imported = 0;
+    for (const item of remoteKeys) {
+      if (!item.id) continue;
+      const existingId = `remote-${item.id}`;
+      if (settings.accounts.some((a) => a.id === existingId)) continue;
+      const decrypted = await run(() =>
+        call<RemoteKeyDecryptResult>("decrypt_remote_key", {
+          request: { tokenId: item.id },
+        }),
+      );
+      if (!decrypted) continue;
+      const account: Account = {
+        id: existingId,
+        name: item.name || `远程 KEY ${item.id}`,
+        baseUrl: apiBaseUrlForAuth(settings.auth.baseUrl),
+        apiKey: decrypted.apiKey,
+        enabled: true,
+      };
+      const saved = await run(() =>
+        call<SettingsResult>("upsert_account", {
+          request: { account, activate: false },
+        }),
+      );
+      if (saved) {
+        setSettings(saved.settings);
+        imported += 1;
+      }
+    }
+    show({ status: "ok", message: imported ? `已同步 ${imported} 个远程 KEY` : "没有新的远程 KEY 需要同步" });
+  }
+
+  async function saveManualKey() {
+    const name = manualKeyForm.name.trim() || "免登录 KEY";
+    const baseUrl = manualKeyForm.baseUrl.trim();
+    let apiKey = manualKeyForm.apiKey.trim();
+
+    // editing an existing entry: keep the saved api_key if user left the field blank
+    const existing = manualKeyForm.id
+      ? settings.accounts.find((a) => a.id === manualKeyForm.id)
+      : undefined;
+    if (!apiKey && existing?.apiKey) {
+      apiKey = existing.apiKey;
+    }
+
+    if (!baseUrl || !apiKey) {
+      setNotice({ status: "failed", message: "请填写 Base URL 和 API KEY" });
+      return;
+    }
+    const account: Account = {
+      id: manualKeyForm.id || `manual-${globalThis.crypto?.randomUUID?.() || Date.now()}`,
+      name,
+      baseUrl,
+      apiKey,
+      enabled: true,
+    };
+    setManualKeySaving(true);
+    try {
+      const saved = await run(() =>
+        call<SettingsResult>("upsert_account", {
+          request: { account, activate: true },
+        }),
+      );
+      if (!saved) return;
+      setSettings(saved.settings);
+      await activateAccount(account.id, true);
+      // belt-and-suspenders: ensure Codex config.toml & auth.json are rewritten
+      // from the freshly saved account, even if disk state was stale moments ago.
+      await run(() => call<ApplyResult>("apply_active_account"));
+      await readConfig();
+      setManualKeyForm(blankManualKey);
+    } finally {
+      setManualKeySaving(false);
+    }
+  }
+
+  function editSavedAccount(account: Account) {
+    setManualKeyForm({
+      id: account.id,
+      name: account.name,
+      baseUrl: account.baseUrl,
+      apiKey: "",
+    });
+  }
+
+  function cancelEdit() {
+    setManualKeyForm(blankManualKey);
+  }
+
+  async function switchSavedAccount(account: Account) {
     await activateAccount(account.id, true);
+    await run(() => call<ApplyResult>("apply_active_account"));
+    await readConfig();
+  }
+
+  async function deleteSavedAccount(account: Account) {
+    const result = await run(() => call<SettingsResult>("delete_account", { id: account.id }));
+    if (!result) return;
+    setSettings(result.settings);
+    show({ status: result.status, message: `已删除 ${account.name}` });
   }
 
   async function activateAccount(id: string, silent = false) {
@@ -399,35 +527,67 @@ export function App() {
     setNotice({ status: result.status, message: result.message });
   }
 
+  const navItems: Array<{ id: Route; label: string; icon: JSX.Element }> = [
+    { id: "keys", label: "免登录配置", icon: <KeyRound size={17} /> },
+    { id: "account", label: "登录配置", icon: <UserRound size={17} /> },
+    { id: "market", label: "商店", icon: <ShoppingBag size={17} /> },
+    { id: "settings", label: "设置", icon: <Settings size={17} /> },
+  ];
+  const restarting = codexLaunchState === "restarting";
+
   return (
     <main className="appShell">
       <aside className="side">
-        <div className="logoMark">
-          <KeyRound size={22} />
+        <div className="brand">
+          <div className="logoMark">
+            <KeyRound size={20} />
+          </div>
+          <span className="brandName">Codex Manager</span>
         </div>
         <nav className="nav">
-          <button className={route === "account" ? "isActive" : ""} onClick={() => setRoute("account")} type="button">
-            <UserRound size={16} /> 账户
-          </button>
-          <button className={route === "market" ? "isActive" : ""} onClick={() => setRoute("market")} type="button">
-            <ShoppingBag size={16} /> 商店
-          </button>
-          <button className={route === "settings" ? "isActive" : ""} onClick={() => setRoute("settings")} type="button">
-            <Settings size={16} /> 设置
-          </button>
+          {navItems.map((item) => (
+            <button
+              key={item.id}
+              className={`navItem ${route === item.id ? "isActive" : ""}`}
+              onClick={() => setRoute(item.id)}
+              type="button"
+            >
+              <span className="navBar" />
+              {item.icon}
+              <span>{item.label}</span>
+            </button>
+          ))}
         </nav>
         <div className="sideBottom">
-          <button className="blackButton" onClick={() => restartCodex()} type="button" disabled={codexLaunchState === "restarting"}>
-            {codexLaunchState === "restarting" ? "重启中" : "重启"}
+          <button
+            className="identityChip"
+            onClick={() => setRoute("account")}
+            type="button"
+            title={user ? "查看登录配置" : "前往登录配置"}
+          >
+            <span className={`statusDot ${user ? "online" : ""}`} />
+            <span className="identityName">{user?.displayName || user?.username || "未登录"}</span>
           </button>
-          <button className="blackButton" onClick={() => setRoute("account")} type="button">
-            {user?.displayName || user?.username || "未登录"}
+          <button
+            className="ghostIconButton"
+            onClick={() => restartCodex()}
+            type="button"
+            disabled={restarting}
+            title="重启 Codex"
+          >
+            <RotateCcw size={15} className={restarting ? "spin" : ""} />
+            {restarting ? "重启中" : "重启 Codex"}
           </button>
         </div>
       </aside>
 
       <section className="content">
-        {notice ? <div className={`notice ${notice.status === "ok" ? "ok" : "failed"}`}>{notice.message}</div> : null}
+        {notice ? (
+          <div className={`notice ${notice.status === "ok" ? "ok" : "failed"}`} role="status">
+            {notice.message}
+          </div>
+        ) : null}
+        {route === "keys" ? keysView() : null}
         {route === "account" ? accountView() : null}
         {route === "market" ? marketView() : null}
         {route === "settings" ? settingsView() : null}
@@ -440,10 +600,136 @@ export function App() {
   function accountView() {
     return (
       <>
-        <h1>用户中心</h1>
+        <header className="pageHead">
+          <h1>登录配置</h1>
+          <p>登录后查询远程 KEY，并可同步到本地配置。</p>
+        </header>
         {user ? loggedInCard(user) : loginCard()}
-        {user ? keyManager() : null}
+        {user ? remoteKeySearchCard() : null}
       </>
+    );
+  }
+
+  function keysView() {
+    return (
+      <>
+        <header className="pageHead">
+          <h1>免登录 KEY 配置</h1>
+          {activeAccount ? <span className="activeAccountBadge">当前：{activeAccount.name}</span> : null}
+        </header>
+        {manualKeyCard()}
+        {savedKeysCard()}
+      </>
+    );
+  }
+
+  function manualKeyCard() {
+    const editing = !!manualKeyForm.id;
+    return (
+      <section className="card manualKeyCard">
+        <div className="sectionHead">
+          <div>
+            <h2>{editing ? "编辑 KEY" : "新增 KEY"}</h2>
+          </div>
+          {editing ? (
+            <button className="ghostButton" onClick={cancelEdit} type="button">
+              <X size={14} /> 取消编辑
+            </button>
+          ) : null}
+        </div>
+        <div className="formGrid">
+          <label>
+            名称
+            <input
+              placeholder="例如：个人 KEY"
+              value={manualKeyForm.name}
+              onChange={(event) => setManualKeyForm({ ...manualKeyForm, name: event.target.value })}
+            />
+          </label>
+          <label>
+            Base URL
+            <input
+              placeholder="https://api.openai.com/v1"
+              value={manualKeyForm.baseUrl}
+              onChange={(event) => setManualKeyForm({ ...manualKeyForm, baseUrl: event.target.value })}
+            />
+          </label>
+          <label className="wideField">
+            API KEY
+            <input
+              autoComplete="off"
+              placeholder={editing ? "留空保持原 KEY 不变" : "sk-..."}
+              type="password"
+              value={manualKeyForm.apiKey}
+              onChange={(event) => setManualKeyForm({ ...manualKeyForm, apiKey: event.target.value })}
+            />
+          </label>
+        </div>
+        <button className="primaryButton" onClick={saveManualKey} type="button" disabled={manualKeySaving}>
+          <Plus size={15} /> {manualKeySaving ? "保存中" : editing ? "保存修改并切换" : "保存并切换"}
+        </button>
+      </section>
+    );
+  }
+
+  function savedKeysCard() {
+    if (!settings.accounts.length) {
+      return (
+        <section className="card">
+          <div className="empty">尚未保存 KEY，使用上方表单添加，或在「账户」页登录后同步远程 KEY。</div>
+        </section>
+      );
+    }
+    return (
+      <section className="card">
+        <div className="sectionHead">
+          <div>
+            <h2>已保存的 KEY</h2>
+          </div>
+          {user ? (
+            <button className="ghostButton" onClick={syncAllRemoteKeys} type="button">
+              <RefreshCw size={14} /> 同步登录 KEY
+            </button>
+          ) : null}
+        </div>
+        <div className="accountList">
+          {settings.accounts.map((account) => {
+            const active = settings.activeAccountId === account.id;
+            const isRemote = account.id.startsWith("remote-");
+            return (
+              <article className={`accountItem ${active ? "active" : ""}`} key={account.id}>
+                <div className="miniIcon">
+                  <KeyRound size={16} />
+                </div>
+                <div className="accountTitle">
+                  <strong>{account.name}</strong>
+                  <span>
+                    {isRemote ? "远程" : "本地"} · {account.baseUrl}
+                  </span>
+                </div>
+                <code>{maskKey(account.apiKey)}</code>
+                <button
+                  className={`useButton ${active ? "active" : ""}`}
+                  onClick={() => switchSavedAccount(account)}
+                  type="button"
+                  disabled={active}
+                >
+                  <span className="useDot" />
+                  {active ? "使用中" : "切换"}
+                </button>
+                {!isRemote ? (
+                  <button className="iconButton" onClick={() => editSavedAccount(account)} type="button" title="编辑">
+                    <Pencil size={14} />
+                  </button>
+                ) : null}
+                <button className="iconButton danger" onClick={() => deleteSavedAccount(account)} type="button" title="删除">
+                  <Trash2 size={15} />
+                </button>
+              </article>
+            );
+          })}
+        </div>
+      </section>
     );
   }
 
@@ -453,7 +739,6 @@ export function App() {
         <div className="sectionHead">
           <div>
             <h2>登录</h2>
-            <p>选择 newApi 登录方式后，可查询和使用远程 KEY。</p>
           </div>
         </div>
         <div className="formGrid">
@@ -500,52 +785,63 @@ export function App() {
 
   function loggedInCard(currentUser: AuthUser) {
     return (
-      <section className="profileCard">
+      <section className="card profileCard">
         <div className="avatar">
-          <KeyRound size={34} />
+          <KeyRound size={30} />
         </div>
         <div className="profileText">
           <h2>{currentUser.displayName || currentUser.username}</h2>
-          <p>用户名：{currentUser.username}</p>
-          <p>用户组：{currentUser.group || "-"}</p>
+          <div className="profileMeta">
+            <span className="metaPill">@{currentUser.username}</span>
+            <span className="metaPill">{currentUser.group || "默认组"}</span>
+          </div>
         </div>
-        <button onClick={logout} type="button">
-          <LogOut size={16} /> 退出登录
+        <button className="ghostButton" onClick={logout} type="button">
+          <LogOut size={15} /> 退出登录
         </button>
       </section>
     );
   }
 
-  function keyManager() {
+  function remoteKeySearchCard() {
     return (
-      <section className="keySection">
+      <section className="card keySection">
         <div className="sectionHead">
           <div>
-            <h1>KEY 管理</h1>
+            <h2>远程 KEY</h2>
           </div>
+          <button className="ghostButton" onClick={syncAllRemoteKeys} type="button" disabled={!remoteKeys.length}>
+            <RefreshCw size={14} /> 全部同步
+          </button>
         </div>
         <div className="searchRow">
-          <input
-            placeholder="搜索"
-            value={remoteKeyword}
-            onChange={(event) => setRemoteKeyword(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !remoteKeysLoading) void searchRemoteKeys();
-            }}
-          />
+          <span className="searchField">
+            <Search size={16} />
+            <input
+              placeholder="搜索 KEY 名称"
+              value={remoteKeyword}
+              onChange={(event) => setRemoteKeyword(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !remoteKeysLoading) void searchRemoteKeys();
+              }}
+            />
+          </span>
           <button className="primaryButton" onClick={() => searchRemoteKeys()} type="button" disabled={remoteKeysLoading}>
-            <Search size={16} /> {remoteKeysLoading ? "查询中" : "查询"}
+            {remoteKeysLoading ? "查询中" : "查询"}
           </button>
         </div>
         <div className="remoteList">
-          {remoteKeysLoading ? <div className="empty loadingBox">正在查询 KEY，请稍候...</div> : null}
+          {remoteKeysLoading ? <div className="empty loadingBox">正在查询 KEY...</div> : null}
           {!remoteKeysLoading && remoteKeys.length === 0 ? <div className="empty">暂无远端 KEY</div> : null}
           {remoteKeys.map((item) => {
-            const active = settings.activeAccountId === `remote-${item.id}`;
+            const localId = `remote-${item.id}`;
+            const active = settings.activeAccountId === localId;
+            const imported = settings.accounts.some((a) => a.id === localId);
+            const busy = decryptingId === item.id;
             return (
               <article className={`remoteItem ${active ? "active" : ""}`} key={item.id || item.name}>
                 <div className="miniIcon">
-                  <KeyRound size={20} />
+                  <KeyRound size={18} />
                 </div>
                 <div className="remoteTitle">
                   <strong>{item.name || "未命名 KEY"}</strong>
@@ -554,11 +850,21 @@ export function App() {
                   </span>
                 </div>
                 <code>{maskKey(item.apiKey)}</code>
-                <button onClick={() => useRemoteKey(item)} type="button" disabled={!item.id || decryptingId === item.id || active}>
-                  {decryptingId === item.id ? "解密中" : "解密"}
+                <button
+                  className="ghostButton"
+                  onClick={() => importRemoteKey(item, false)}
+                  type="button"
+                  disabled={!item.id || busy || imported}
+                >
+                  {imported ? "已同步" : busy ? "解密中" : "同步"}
                 </button>
-                <button className={active ? "useState active" : "useState"} onClick={() => useRemoteKey(item)} type="button" disabled={active}>
-                  <span />
+                <button
+                  className={`useButton ${active ? "active" : ""}`}
+                  onClick={() => importRemoteKey(item, true)}
+                  type="button"
+                  disabled={!item.id || busy || active}
+                >
+                  <span className="useDot" />
                   {active ? "使用中" : "使用"}
                 </button>
               </article>
@@ -572,90 +878,128 @@ export function App() {
   function marketView() {
     return (
       <>
-        <h1>商店</h1>
+        <header className="pageHead">
+          <h1>商店</h1>
+        </header>
         <section className="card placeholder">脚本市场和扩展推荐入口预留。</section>
       </>
     );
   }
 
   function settingsView() {
+    const codexBusy = codexLaunchState === "starting" || codexLaunchState === "restarting";
     return (
       <>
-        <section className="settingsPanel">
-          <header className="settingsTitle">
-            <h1>设置</h1>
-            <span />
-          </header>
+        <header className="pageHead">
+          <h1>设置</h1>
+        </header>
 
-          <div className="settingRow">
-            <h2>启动 Codex</h2>
-            <div className="settingActions">
+        <section className="settingsGroup">
+          <h2 className="groupTitle">Codex 运行</h2>
+          <div className="groupCard">
+            <div className="settingRow">
+              <div className="settingLabel">
+                <h3>启动 Codex</h3>
+              </div>
+              <div className="settingActions">
+                <button
+                  className={codexLaunchState === "started" ? "successButton" : "primaryButton"}
+                  onClick={launchCodex}
+                  type="button"
+                  disabled={codexLaunchState === "starting" || codexLaunchState === "started"}
+                >
+                  {codexLaunchState === "starting" ? (
+                    <>
+                      <RefreshCw size={15} className="spin" /> 启动中
+                    </>
+                  ) : codexLaunchState === "started" ? (
+                    "已启动"
+                  ) : (
+                    <>
+                      <Play size={15} /> 启动
+                    </>
+                  )}
+                </button>
+                <button className="ghostButton" onClick={() => restartCodex()} type="button" disabled={codexBusy}>
+                  <RotateCcw size={15} className={codexLaunchState === "restarting" ? "spin" : ""} />
+                  {codexLaunchState === "restarting" ? "重启中" : "重启"}
+                </button>
+              </div>
+            </div>
+
+            <div className="settingRow pathRow">
+              <div className="settingLabel">
+                <h3>Codex 位置</h3>
+              </div>
+              <div className="pathInfo">
+                <code title={codexPath?.executablePath || ""}>
+                  {codexPathChecking
+                    ? "检测中..."
+                    : codexPath?.executablePath || codexPath?.message || "未检测到"}
+                </code>
+                {codexPath?.status === "ok" ? (
+                  <span className="pathTag">
+                    {codexPath.source || "auto"}
+                    {codexPath.version ? ` · ${codexPath.version}` : ""}
+                  </span>
+                ) : null}
+                <button className="ghostButton" onClick={detectCodexPath} type="button" disabled={codexPathChecking}>
+                  <RefreshCw size={14} className={codexPathChecking ? "spin" : ""} /> {codexPathChecking ? "检测中" : "重新检测"}
+                </button>
+              </div>
+            </div>
+
+            <div className="settingRow">
+              <div className="settingLabel">
+                <h3>安装 Codex</h3>
+              </div>
+              <button className="ghostButton" onClick={installCodex} type="button">
+                安装
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section className="settingsGroup">
+          <h2 className="groupTitle">增强</h2>
+          <div className="groupCard">
+            <div className="settingRow">
+              <div className="settingLabel">
+                <h3>解锁插件</h3>
+                <p>启用后会自动重启 Codex</p>
+              </div>
               <button
-                className={codexLaunchState === "started" ? "successButton" : "primaryButton"}
-                onClick={launchCodex}
+                aria-label="解锁插件"
+                aria-pressed={settings.pluginEnabled}
+                className={`switch ${settings.pluginEnabled ? "isOn" : ""}`}
+                disabled={codexBusy}
+                onClick={togglePlugin}
                 type="button"
-                disabled={codexLaunchState === "starting" || codexLaunchState === "started"}
               >
-                {codexLaunchState === "starting" ? "启动中..." : codexLaunchState === "started" ? "已启动" : "启动"}
-              </button>
-              <button onClick={() => restartCodex()} type="button" disabled={codexLaunchState === "starting" || codexLaunchState === "restarting"}>
-                {codexLaunchState === "restarting" ? "重启中..." : "重启"}
+                <span />
               </button>
             </div>
           </div>
-
-          <div className="settingRow">
-            <h2>安装 Codex</h2>
-            <button onClick={installCodex} type="button">
-              安装
-            </button>
-          </div>
-
-          <div className="settingRow pathRow">
-            <h2>Codex 位置</h2>
-            <div className="pathInfo">
-              <code>
-                {codexPathChecking
-                  ? "正在检测 Codex 安装位置..."
-                  : codexPath?.executablePath || codexPath?.message || "未检测到 Codex 安装位置"}
-              </code>
-              {codexPath?.status === "ok" ? (
-                <span>
-                  {codexPath.source || "auto"}
-                  {codexPath.version ? ` · ${codexPath.version}` : ""}
-                </span>
-              ) : null}
-              <button onClick={detectCodexPath} type="button" disabled={codexPathChecking}>
-                <RefreshCw size={14} /> {codexPathChecking ? "检测中..." : "重新检测"}
+        </section>
+        <section className="settingsGroup">
+          <h2 className="groupTitle">配置</h2>
+          <div className="groupCard">
+            <div className="settingRow">
+              <div className="settingLabel">
+                <h3>查看配置</h3>
+              </div>
+              <button className="ghostButton" onClick={openConfigModal} type="button">
+                <FileText size={15} /> 查看
               </button>
             </div>
-          </div>
-
-          <div className="settingRow">
-            <h2>解锁插件</h2>
-            <button
-              aria-label="解锁插件"
-              className={`switch ${settings.pluginEnabled ? "isOn" : ""}`}
-              disabled={codexLaunchState === "starting" || codexLaunchState === "restarting"}
-              onClick={togglePlugin}
-              type="button"
-            >
-              <span />
-            </button>
-          </div>
-
-          <div className="settingRow">
-            <h2>恢复配置</h2>
-            <button onClick={openRestorePreview} type="button" disabled={!configView?.backupAvailable}>
-              恢复
-            </button>
-          </div>
-
-          <div className="settingRow">
-            <h2>查看配置</h2>
-            <button onClick={openConfigModal} type="button">
-              查看
-            </button>
+            <div className="settingRow">
+              <div className="settingLabel">
+                <h3>恢复配置</h3>
+              </div>
+              <button className="ghostButton" onClick={openRestorePreview} type="button" disabled={!configView?.backupAvailable}>
+                <RotateCcw size={15} /> 恢复
+              </button>
+            </div>
           </div>
         </section>
       </>
@@ -671,7 +1015,7 @@ export function App() {
               <h2>当前 Codex 配置</h2>
               <p>{settingsPath || "配置文件尚未创建"}</p>
             </div>
-            <button onClick={() => setConfigModalOpen(false)} type="button">
+            <button className="ghostButton" onClick={() => setConfigModalOpen(false)} type="button">
               关闭
             </button>
           </div>
@@ -693,7 +1037,7 @@ export function App() {
               <h2>恢复配置预览</h2>
               <p>{restorePreview?.backupPath || "-"}</p>
             </div>
-            <button onClick={() => setRestoreModalOpen(false)} type="button" disabled={restoreLoading}>
+            <button className="ghostButton" onClick={() => setRestoreModalOpen(false)} type="button" disabled={restoreLoading}>
               关闭
             </button>
           </div>
@@ -707,7 +1051,7 @@ export function App() {
             <Preview title="auth.json" path={restorePreview?.authPath} text={restorePreview?.authJson} />
           </div>
           <div className="modalActions">
-            <button onClick={() => setRestoreModalOpen(false)} type="button" disabled={restoreLoading}>
+            <button className="ghostButton" onClick={() => setRestoreModalOpen(false)} type="button" disabled={restoreLoading}>
               取消
             </button>
             <button className="primaryButton" onClick={confirmRestoreBackup} type="button" disabled={restoreLoading}>

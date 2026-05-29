@@ -55,6 +55,10 @@ type AppSettings = {
 
 `pluginEnabled` 在 UI 中显示为“解锁插件”。开启后，启动 Codex 时会启用完整增强模式的插件入口解锁能力。
 
+用户中心支持两种 KEY 切换方式：
+- 登录 NewAPI 后查询远程 KEY，解密后写入本地账号并激活。
+- 免登录填写 `baseUrl` 和 `apiKey`，通过 `upsert_account` 保存本地账号后直接调用 `activate_account` 切换。
+
 ## Tauri IPC
 
 ### backend_version
@@ -206,7 +210,7 @@ CommandResult<{
 
 ### upsert_account
 
-新增或更新本地账号，可同时激活。
+新增或更新本地账号，可同时激活。免登录 KEY 配置也复用该接口，前端会传入用户填写的 `baseUrl` 和 `apiKey`。
 
 请求：
 

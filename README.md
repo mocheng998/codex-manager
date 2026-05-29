@@ -41,7 +41,7 @@ cargo check --workspace
 
 ## Release
 
-V1 package version is `1.0.6`.
+V1 package version is `1.0.8`.
 
 ```powershell
 cd apps/codex-manager
