@@ -5,23 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Codex Manager 是一个 Rust + Tauri 桌面管理器，用来集中管理 Codex API Key、NewAPI 账号、配置备份和插件入口解锁。"
+      content="codex助手 是一个 Rust + Tauri 桌面管理器，用来集中管理 Codex API Key、NewAPI 账号、配置备份和插件入口解锁。"
     />
-    <meta property="og:title" content="Codex Manager" />
+    <meta property="og:title" content="codex助手" />
     <meta
       property="og:description"
       content="集中管理 Codex API Key、NewAPI 远程 KEY、配置备份和启动增强，不修改 Codex 安装目录。"
     />
     <meta property="og:image" content="assets/dashboard-preview.png" />
-    <title>Codex Manager | Codex KEY 与启动增强管理器</title>
+    <title>codex助手 | Codex KEY 与启动增强管理器</title>
     <link rel="icon" href="assets/app-icon.png" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <header class="site-header">
-      <a class="brand" href="#top" aria-label="Codex Manager 首页">
+      <a class="brand" href="#top" aria-label="codex助手 首页">
         <img src="assets/app-icon.png" alt="" />
-        <span>Codex Manager</span>
+        <span>codex助手</span>
       </a>
       <nav aria-label="页面导航">
         <a href="#features">功能</a>
@@ -46,21 +46,21 @@
       </nav>
     </header>
 
-    <aside class="floating-community-card" aria-label="codex-manager 官方交流群">
+    <aside class="floating-community-card" aria-label="codex助手 官方交流群">
       <strong>官方交流群</strong>
-      <img src="assets/official-group.jpg" alt="codex-manager 官方交流群二维码" />
-      <span>扫码加入 codex-manager 官方交流群</span>
+      <img src="assets/official-group.jpg" alt="codex助手 官方交流群二维码" />
+      <span>扫码加入 codex助手 官方交流群</span>
     </aside>
 
     <main id="top">
-      <section class="hero" aria-label="Codex Manager 产品介绍">
-        <img class="hero-image" src="assets/dashboard-preview.png" alt="Codex Manager 管理界面预览" />
+      <section class="hero" aria-label="codex助手 产品介绍">
+        <img class="hero-image" src="assets/dashboard-preview.png" alt="codex助手 管理界面预览" />
         <div class="hero-shade"></div>
         <div class="hero-content">
           <p class="eyebrow">Codex KEY 管理 </p>
           <h1>零<span class="magic-text">魔法</span>快速使用codex</h1>
           <p class="hero-lede">
-            Codex Manager用本地桌面应用集中管理 API Key、NewAPI 远程 KEY、Codex
+            codex助手用本地桌面应用集中管理 API Key、NewAPI 远程 KEY、Codex
             配置写入、备份恢复和插件入口解锁
           </p>
           <div class="hero-actions">
@@ -72,6 +72,21 @@
             <span>自动备份</span>
             <span>NewAPI KEY 同步</span>
             <span>Codex 启动增强</span>
+          </div>
+          <div class="download-panel" aria-label="Windows 版本下载">
+            <a
+              class="button primary download-button"
+              href="https://github.com/mocheng998/codex-manager/releases/latest"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path
+                  d="M12 3a1 1 0 0 1 1 1v8.59l2.3-2.29a1 1 0 1 1 1.4 1.42l-4 4a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.42l2.3 2.29V4a1 1 0 0 1 1-1Zm-7 13a1 1 0 0 1 1 1v2h12v-2a1 1 0 1 1 2 0v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1Z"
+                />
+              </svg>
+              <span>下载 Windows 版</span>
+            </a>
           </div>
         </div>
       </section>
@@ -132,7 +147,7 @@
 
       <section class="section split" id="workflow">
         <div class="screen-frame">
-          <img src="assets/dashboard-preview.png" alt="Codex Manager KEY 管理界面预览" />
+          <img src="assets/dashboard-preview.png" alt="codex助手 KEY 管理界面预览" />
         </div>
         <div class="split-copy">
           <p class="eyebrow">使用流程</p>
@@ -144,7 +159,7 @@
           <ol class="step-list">
             <li>填写本地 KEY，或登录 NewAPI 后同步远程 KEY。</li>
             <li>选择一个账号并点击切换，写入 config.toml 和 auth.json。</li>
-            <li>用 Codex Manager 启动或重启 Codex，让当前配置生效。</li>
+            <li>用 codex助手 启动或重启 Codex，让当前配置生效。</li>
             <li>需要回滚时打开配置预览，恢复最近一次备份。</li>
           </ol>
         </div>
@@ -177,7 +192,7 @@
           <h2>先讲清楚产品边界。</h2>
         </div>
         <details open>
-          <summary>Codex Manager 会修改 Codex 安装目录吗？</summary>
+          <summary>codex助手 会修改 Codex 安装目录吗？</summary>
           <p>不会。V1 的设计目标是不 patch app.asar，也不写入 Codex 安装目录，只管理用户配置和启动参数。</p>
         </details>
         <details>
@@ -196,7 +211,7 @@
     </main>
 
     <footer class="site-footer">
-      <span>Codex Manager</span>
+      <span>codex助手</span>
       <a href="manual.html">使用说明</a>
     </footer>
   </body>
