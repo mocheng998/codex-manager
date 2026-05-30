@@ -11,12 +11,8 @@ permissions:
 
 jobs:
   build:
-    name: Build ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, macos-latest]
+    name: Build Windows
+    runs-on: windows-latest
 
     steps:
       - name: Checkout
@@ -44,23 +40,17 @@ jobs:
         run: cargo check --workspace
 
       - name: Build Windows bundle
-        if: runner.os == 'Windows'
         working-directory: apps/codex-manager
         run: npm run build:windows
-
-      - name: Build macOS bundle
-        if: runner.os == 'macOS'
-        working-directory: apps/codex-manager
-        run: npm run build:mac
 
       - name: Upload bundle
         uses: actions/upload-artifact@v4
         with:
-          name: codex-manager-${{ matrix.os }}
+          name: codex-manager-windows
           path: |
-            target/release/codex-manager*
-            target/release/codex-manager-launcher*
-            target/release/bundle/**
+            target/release/codex-manager.exe
+            target/release/codex-manager-launcher.exe
+            target/release/bundle/msi/*.msi
 
       - name: Upload bundle to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
@@ -73,12 +63,10 @@ jobs:
 
           shopt -s nullglob globstar
           files=(
-            target/release/codex-manager*
-            target/release/codex-manager-launcher*
+            target/release/codex-manager.exe
+            target/release/codex-manager-launcher.exe
             target/release/bundle/**/*.msi
             target/release/bundle/**/*.exe
-            target/release/bundle/**/*.dmg
-            target/release/bundle/**/*.app.tar.gz
           )
 
           if [ ${#files[@]} -eq 0 ]; then
