@@ -88,6 +88,10 @@ img {
 }
 
 .site-header nav a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
   border-radius: 999px;
   padding: 8px 13px;
   color: var(--muted);
@@ -98,6 +102,17 @@ img {
 .site-header nav a:hover {
   color: var(--ink);
   background: var(--surface-alt);
+}
+
+.site-header nav a.github-link {
+  width: 34px;
+  padding: 0;
+}
+
+.site-header nav a.github-link svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
 }
 
 .floating-community-card {
