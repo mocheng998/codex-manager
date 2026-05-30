@@ -36,6 +36,10 @@ jobs:
         working-directory: apps/codex-manager
         run: npm run check
 
+      - name: Build frontend
+        working-directory: apps/codex-manager
+        run: npm run vite:build
+
       - name: Check Rust workspace
         run: cargo check --workspace
 
