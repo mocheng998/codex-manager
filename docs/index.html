@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Codex Manager 是一个 Rust + Tauri 桌面管理器，用来集中管理 Codex API Key、NewAPI 账号、配置备份和插件入口解锁。"
+    />
+    <meta property="og:title" content="Codex Manager" />
+    <meta
+      property="og:description"
+      content="集中管理 Codex API Key、NewAPI 远程 KEY、配置备份和启动增强，不修改 Codex 安装目录。"
+    />
+    <meta property="og:image" content="assets/dashboard-preview.png" />
+    <title>Codex Manager | Codex KEY 与启动增强管理器</title>
+    <link rel="icon" href="assets/app-icon.png" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="Codex Manager 首页">
+        <img src="assets/app-icon.png" alt="" />
+        <span>Codex Manager</span>
+      </a>
+      <nav aria-label="页面导航">
+        <a href="#features">功能</a>
+        <a href="#workflow">流程</a>
+        <a href="#security">安全</a>
+        <a href="#faq">FAQ</a>
+        <a href="manual.html">使用说明</a>
+      </nav>
+    </header>
+
+    <aside class="floating-community-card" aria-label="codex-manager 官方交流群">
+      <strong>官方交流群</strong>
+      <img src="assets/official-group.jpg" alt="codex-manager 官方交流群二维码" />
+      <span>扫码加入 codex-manager 官方交流群</span>
+    </aside>
+
+    <main id="top">
+      <section class="hero" aria-label="Codex Manager 产品介绍">
+        <img class="hero-image" src="assets/dashboard-preview.png" alt="Codex Manager 管理界面预览" />
+        <div class="hero-shade"></div>
+        <div class="hero-content">
+          <p class="eyebrow">Codex KEY 管理 </p>
+          <h1>零<span class="magic-text">魔法</span>快速使用codex</h1>
+          <p class="hero-lede">
+            Codex Manager用本地桌面应用集中管理 API Key、NewAPI 远程 KEY、Codex
+            配置写入、备份恢复和插件入口解锁
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="#features">了解核心功能</a>
+            <a class="button secondary" href="manual.html">阅读使用说明</a>
+          </div>
+          <div class="trust-row" aria-label="产品特性">
+            <span>本地配置</span>
+            <span>自动备份</span>
+            <span>NewAPI KEY 同步</span>
+            <span>Codex 启动增强</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="section problem">
+        <div class="section-heading">
+          <p class="eyebrow">为什么需要它</p>
+        </div>
+        <div class="problem-grid">
+          <article class="highlight-card">
+            <strong>零门槛安装使用</strong>
+            <p>无需魔法安装使用，打开管理器即可配置 KEY、应用账号并启动 Codex。</p>
+          </article>
+          <article>
+            <strong>KEY 切换集中化</strong>
+            <p>保存多个本地 KEY，点击切换后自动写入 Codex 的 config.toml 和 auth.json。</p>
+          </article>
+          <article>
+            <strong>NewAPI 远程同步</strong>
+            <p>登录兼容 NewAPI 的服务，查询远程 KEY，解密后同步到本地账号列表。</p>
+          </article>
+          <article>
+            <strong>启动前自动应用</strong>
+            <p>启动或重启 Codex 前先应用当前账号，减少配置残留和手动操作。</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="features">
+        <div class="section-heading centered">
+          <p class="eyebrow">核心能力</p>
+          <h2>围绕 Codex 日常使用，把高频操作做成可见、可回退的流程。</h2>
+          <p>V1 聚焦 KEY 管理、Codex 路径检测、配置预览、备份恢复和插件入口解锁。</p>
+        </div>
+        <div class="feature-grid">
+          <article>
+            <span>01</span>
+            <h3>免登录 KEY 配置</h3>
+            <p>直接填写名称、Base URL 和 API Key，保存后立刻切换为当前 Codex 配置。</p>
+          </article>
+          <article>
+            <span>02</span>
+            <h3>登录 NewAPI</h3>
+            <p>通过账号密码登录兼容服务，拉取远程 KEY 列表，按需同步或直接使用。</p>
+          </article>
+          <article>
+            <span>03</span>
+            <h3>配置查看与恢复</h3>
+            <p>在应用内查看当前 config.toml、auth.json，并从最近一次备份恢复。</p>
+          </article>
+          <article>
+            <span>04</span>
+            <h3>插件入口解锁</h3>
+            <p>启动时动态选择调试端口并注入增强脚本，不修改 Codex 原始安装文件。</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section split" id="workflow">
+        <div class="screen-frame">
+          <img src="assets/dashboard-preview.png" alt="Codex Manager KEY 管理界面预览" />
+        </div>
+        <div class="split-copy">
+          <p class="eyebrow">使用流程</p>
+          <h2>添加 KEY，切换账号，然后启动 Codex。</h2>
+          <p>
+            当前账号会被写入用户的 Codex 配置目录。每次应用账号或清除 API 模式前，核心逻辑都会先创建备份，
+            这样可以在配置异常时回到上一个可用状态。
+          </p>
+          <ol class="step-list">
+            <li>填写本地 KEY，或登录 NewAPI 后同步远程 KEY。</li>
+            <li>选择一个账号并点击切换，写入 config.toml 和 auth.json。</li>
+            <li>用 Codex Manager 启动或重启 Codex，让当前配置生效。</li>
+            <li>需要回滚时打开配置预览，恢复最近一次备份。</li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="section security" id="security">
+        <div class="section-heading centered">
+          <p class="eyebrow">本地安全边界</p>
+          <h2>不改安装目录，关键配置写入前先备份。</h2>
+        </div>
+        <div class="security-grid">
+          <article>
+            <h3>不 patch app.asar</h3>
+            <p>增强能力在启动时通过参数和调试端口注入，避免直接改动 Codex 应用包。</p>
+          </article>
+          <article>
+            <h3>配置目录可追踪</h3>
+            <p>管理器配置保存在平台配置目录，Codex 配置默认指向 ~/.codex。</p>
+          </article>
+          <article>
+            <h3>备份可恢复</h3>
+            <p>账号切换、应用配置和清除 API 模式前都会生成备份，便于回滚。</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section faq" id="faq">
+        <div class="section-heading centered">
+          <p class="eyebrow">常见问题</p>
+          <h2>先讲清楚产品边界。</h2>
+        </div>
+        <details open>
+          <summary>Codex Manager 会修改 Codex 安装目录吗？</summary>
+          <p>不会。V1 的设计目标是不 patch app.asar，也不写入 Codex 安装目录，只管理用户配置和启动参数。</p>
+        </details>
+        <details>
+          <summary>它主要解决什么问题？</summary>
+          <p>它把 KEY 保存、账号切换、Codex 配置写入、备份恢复和启动增强集中到一个桌面界面里。</p>
+        </details>
+        <details>
+          <summary>支持 NewAPI 吗？</summary>
+          <p>支持兼容 NewAPI 的登录、远程 KEY 查询、远程 KEY 解密和本地同步流程。</p>
+        </details>
+        <details>
+          <summary>支持 Windows 和 macOS 吗？</summary>
+          <p>项目基于 Rust + Tauri，核心逻辑面向跨平台桌面应用，Windows 和 macOS 都在规划的使用范围内。</p>
+        </details>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>Codex Manager</span>
+      <a href="manual.html">使用说明</a>
+    </footer>
+  </body>
+</html>

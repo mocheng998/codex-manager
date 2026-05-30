@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Codex Manager 使用说明：安装、添加 KEY、登录 NewAPI、切换 Codex 配置、启动增强和备份恢复。"
+    />
+    <title>使用说明 | Codex Manager</title>
+    <link rel="icon" href="assets/app-icon.png" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="manual-page">
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="返回 Codex Manager 首页">
+        <img src="assets/app-icon.png" alt="" />
+        <span>Codex Manager</span>
+      </a>
+      <nav aria-label="手册导航">
+        <a href="index.html">首页</a>
+        <a href="#install">安装</a>
+        <a href="#keys">KEY</a>
+        <a href="#launch">启动</a>
+        <a href="#backup">备份</a>
+      </nav>
+    </header>
+
+    <main class="manual-layout">
+      <aside class="manual-toc" aria-label="手册目录">
+        <strong>使用说明</strong>
+        <a href="#overview">适用场景</a>
+        <a href="#install">安装</a>
+        <a href="#keys">本地 KEY</a>
+        <a href="#newapi">NewAPI</a>
+        <a href="#launch">启动 Codex</a>
+        <a href="#backup">备份恢复</a>
+      </aside>
+
+      <article class="manual-content">
+        <section id="overview" class="manual-hero">
+          <p class="eyebrow">图文使用说明</p>
+          <h1>从添加第一个 KEY 到启动 Codex。</h1>
+          <p>
+            Codex Manager 适合需要频繁切换 Codex API Key、使用 NewAPI 中转服务、查看配置写入结果，
+            或希望在不修改 Codex 安装目录的前提下启用启动增强的用户。
+          </p>
+          <figure>
+            <img src="assets/dashboard-preview.png" alt="Codex Manager 管理界面预览" />
+            <figcaption>左侧是功能导航，右侧集中处理 KEY、Codex 启动、配置预览和恢复。</figcaption>
+          </figure>
+        </section>
+
+        <section id="install" class="manual-section">
+          <h2>1. 安装与运行</h2>
+          <ol>
+            <li>下载对应系统的安装包。</li>
+            <li>Windows 使用 msi 或 exe 安装包，macOS 使用 app 或 dmg 安装包。</li>
+            <li>第一次打开后进入设置页，点击重新检测 Codex 位置。</li>
+          </ol>
+          <p>开发环境可以直接运行：</p>
+          <pre><code>cd apps/codex-manager
+npm install
+npm run dev</code></pre>
+        </section>
+
+        <section id="keys" class="manual-section">
+          <h2>2. 添加免登录 KEY</h2>
+          <ol>
+            <li>进入免登录 KEY 配置页。</li>
+            <li>填写名称、Base URL 和 API KEY。</li>
+            <li>点击保存并切换，Codex Manager 会把它设为当前账号。</li>
+          </ol>
+          <div class="manual-note">
+            Base URL 通常以 /v1 结尾。切换账号后，应用会写入 Codex 的 config.toml 和 auth.json。
+          </div>
+        </section>
+
+        <section id="newapi" class="manual-section">
+          <h2>3. 登录 NewAPI 并同步远程 KEY</h2>
+          <ol>
+            <li>进入登录配置页，填写兼容 NewAPI 的服务地址、账号和密码。</li>
+            <li>登录成功后查询远程 KEY，可以按名称搜索。</li>
+            <li>选择同步，或直接点击使用，把远程 KEY 解密后保存到本地账号列表。</li>
+          </ol>
+          <p>当前 V1 主要面向兼容 NewAPI 的远程 KEY 管理流程。</p>
+        </section>
+
+        <section id="launch" class="manual-section">
+          <h2>4. 启动或重启 Codex</h2>
+          <ol>
+            <li>确认当前账号已经切换成功。</li>
+            <li>进入设置页，点击启动 Codex 或重启 Codex。</li>
+            <li>如果开启插件解锁，Codex Manager 会保存设置并自动重启 Codex。</li>
+          </ol>
+          <p>启动时会动态选择空闲调试端口，并过滤冲突参数，减少重启白屏风险。</p>
+        </section>
+
+        <section id="backup" class="manual-section">
+          <h2>5. 查看配置与恢复备份</h2>
+          <ol>
+            <li>在设置页点击查看配置，可以预览当前 config.toml 和 auth.json。</li>
+            <li>点击恢复配置，可以查看最近一次备份内容。</li>
+            <li>确认后恢复，Codex 配置会回到备份状态。</li>
+          </ol>
+          <div class="manual-note">
+            每次应用账号、恢复配置或清除 API 模式前，核心逻辑都会创建备份。
+          </div>
+        </section>
+      </article>
+    </main>
+
+    <footer class="site-footer">
+      <span>Codex Manager</span>
+      <a href="index.html">返回首页</a>
+    </footer>
+  </body>
+</html>
