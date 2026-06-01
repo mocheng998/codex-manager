@@ -5,7 +5,7 @@ use serde_json::Value;
 
 pub const DEFAULT_REPOSITORY: &str = "mocheng998/codex-manager";
 pub const DEFAULT_LATEST_JSON_URL: &str =
-    "https://github.com/mocheng998/codex-manager/releases/latest/download/latest.json";
+    "https://downloads.yuciyuan.top/codex-manager/latest.json";
 pub const DEFAULT_GITHUB_RELEASE_URL: &str =
     "https://api.github.com/repos/mocheng998/codex-manager/releases/latest";
 

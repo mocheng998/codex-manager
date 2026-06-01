@@ -1053,11 +1053,11 @@ export function App() {
             <div className="settingRow updateUrlRow">
               <div className="settingLabel">
                 <h3>更新检查地址</h3>
-                <p>留空时使用 GitHub；也可以填你自己的公开 latest.json 地址。</p>
+                <p>留空时使用 Cloudflare；GitHub 作为兜底源，也可以填你自己的公开 latest.json 地址。</p>
               </div>
               <div className="updateUrlBox">
                 <input
-                  placeholder="https://example.com/codex-manager/latest.json"
+                  placeholder="https://downloads.yuciyuan.top/codex-manager/latest.json"
                   value={settings.updateManifestUrl || ""}
                   onChange={(event) => setSettings({ ...settings, updateManifestUrl: event.target.value })}
                 />

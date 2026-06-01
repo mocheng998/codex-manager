@@ -13,6 +13,12 @@ jobs:
   build:
     name: Build Windows
     runs-on: windows-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_R2_BUCKET: ${{ secrets.CLOUDFLARE_R2_BUCKET }}
+      CLOUDFLARE_DOWNLOAD_BASE_URL: ${{ secrets.CLOUDFLARE_DOWNLOAD_BASE_URL }}
+      CLOUDFLARE_DOWNLOAD_PATH_PREFIX: ${{ vars.CLOUDFLARE_DOWNLOAD_PATH_PREFIX || 'codex-manager' }}
 
     steps:
       - name: Checkout
@@ -21,7 +27,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: apps/codex-manager/package-lock.json
 
@@ -47,6 +53,29 @@ jobs:
         working-directory: apps/codex-manager
         run: npm run build:windows
 
+      - name: Generate latest manifest
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          shopt -s nullglob globstar
+          files=(
+            target/release/bundle/**/*.msi
+            target/release/bundle/**/*.exe
+          )
+
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No installer files found"
+            exit 1
+          fi
+
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ] || [ -z "$CLOUDFLARE_R2_BUCKET" ] || [ -z "$CLOUDFLARE_DOWNLOAD_BASE_URL" ]; then
+            echo "Cloudflare R2 is not fully configured; latest.json will point to GitHub Release assets."
+            unset CLOUDFLARE_DOWNLOAD_BASE_URL
+          fi
+
+          node scripts/generate-latest-json.mjs "${files[@]}"
+
       - name: Upload bundle
         uses: actions/upload-artifact@v4
         with:
@@ -55,6 +84,7 @@ jobs:
             target/release/codex-manager.exe
             target/release/codex-manager-launcher.exe
             target/release/bundle/msi/*.msi
+            target/release/latest.json
 
       - name: Upload bundle to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
@@ -71,6 +101,7 @@ jobs:
             target/release/codex-manager-launcher.exe
             target/release/bundle/**/*.msi
             target/release/bundle/**/*.exe
+            target/release/latest.json
           )
 
           if [ ${#files[@]} -eq 0 ]; then
@@ -79,3 +110,34 @@ jobs:
           fi
 
           gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber
+
+      - name: Upload bundle to Cloudflare R2
+        if: startsWith(github.ref, 'refs/tags/') && env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != '' && env.CLOUDFLARE_R2_BUCKET != '' && env.CLOUDFLARE_DOWNLOAD_BASE_URL != ''
+        shell: bash
+        run: |
+          shopt -s nullglob globstar
+          prefix="${CLOUDFLARE_DOWNLOAD_PATH_PREFIX:-codex-manager}"
+          prefix="${prefix#/}"
+          prefix="${prefix%/}"
+          files=(
+            target/release/bundle/**/*.msi
+            target/release/bundle/**/*.exe
+          )
+
+          for file in "${files[@]}"; do
+            key="$prefix/releases/$GITHUB_REF_NAME/$(basename "$file")"
+            npx wrangler r2 object put "$CLOUDFLARE_R2_BUCKET/$key" --file "$file" --remote
+          done
+
+          latest_installer=""
+          for file in target/release/bundle/**/*.msi; do
+            latest_installer="$file"
+            break
+          done
+
+          if [ -n "$latest_installer" ]; then
+            npx wrangler r2 object put "$CLOUDFLARE_R2_BUCKET/$prefix/latest/codex-manager-windows-latest.msi" --file "$latest_installer" --remote
+          fi
+
+          npx wrangler r2 object put "$CLOUDFLARE_R2_BUCKET/$prefix/releases/$GITHUB_REF_NAME/latest.json" --file target/release/latest.json --content-type "application/json; charset=utf-8" --remote
+          npx wrangler r2 object put "$CLOUDFLARE_R2_BUCKET/$prefix/latest.json" --file target/release/latest.json --content-type "application/json; charset=utf-8" --remote
