@@ -83,6 +83,49 @@ impl Default for AuthState {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+pub struct LoginAccount {
+    pub id: String,
+    pub name: String,
+    pub auth: AuthState,
+}
+
+impl LoginAccount {
+    pub fn from_auth(auth: AuthState) -> Self {
+        let name = auth
+            .user
+            .as_ref()
+            .map(|user| {
+                let display_name = if user.display_name.trim().is_empty() {
+                    user.username.trim()
+                } else {
+                    user.display_name.trim()
+                };
+                format!("{display_name} · {}", auth.base_url)
+            })
+            .unwrap_or_else(|| auth.base_url.clone());
+
+        Self {
+            id: Uuid::new_v4().to_string(),
+            name,
+            auth,
+        }
+    }
+
+    pub fn matches_auth(&self, auth: &AuthState) -> bool {
+        let same_base_url = clean_url(&self.auth.base_url) == clean_url(&auth.base_url);
+        let same_user = self
+            .auth
+            .user
+            .as_ref()
+            .zip(auth.user.as_ref())
+            .map(|(left, right)| left.id == right.id && left.username == right.username)
+            .unwrap_or(false);
+        same_base_url && same_user
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct AppSettings {
     pub codex_app_path: String,
     pub active_account_id: String,
@@ -91,6 +134,12 @@ pub struct AppSettings {
     pub plugin_enabled: bool,
     #[serde(default)]
     pub auth: AuthState,
+    #[serde(default)]
+    pub active_login_id: String,
+    #[serde(default)]
+    pub login_accounts: Vec<LoginAccount>,
+    #[serde(default)]
+    pub update_manifest_url: String,
     pub accounts: Vec<Account>,
 }
 
@@ -102,6 +151,9 @@ impl Default for AppSettings {
             launch_extra_args: Vec::new(),
             plugin_enabled: false,
             auth: AuthState::default(),
+            active_login_id: String::new(),
+            login_accounts: Vec::new(),
+            update_manifest_url: String::new(),
             accounts: Vec::new(),
         }
     }
@@ -118,6 +170,66 @@ impl AppSettings {
         if self.auth.base_url.is_empty() {
             self.auth.base_url = DEFAULT_AUTH_BASE_URL.to_string();
         }
+        self.update_manifest_url = self.update_manifest_url.trim().to_string();
+        self.login_accounts = self
+            .login_accounts
+            .into_iter()
+            .filter_map(|mut account| {
+                account.id = account.id.trim().to_string();
+                if account.id.is_empty() {
+                    account.id = Uuid::new_v4().to_string();
+                }
+                account.name = account.name.trim().to_string();
+                account.auth.login_mode = if account.auth.login_mode.trim().is_empty() {
+                    "newApi".to_string()
+                } else {
+                    account.auth.login_mode.trim().to_string()
+                };
+                account.auth.base_url = clean_url(&account.auth.base_url);
+                if account.auth.base_url.is_empty() {
+                    account.auth.base_url = DEFAULT_AUTH_BASE_URL.to_string();
+                }
+                let user = account.auth.user.as_ref()?;
+                if account.name.is_empty() {
+                    let display_name = if user.display_name.trim().is_empty() {
+                        user.username.trim()
+                    } else {
+                        user.display_name.trim()
+                    };
+                    account.name = format!("{display_name} · {}", account.auth.base_url);
+                }
+                Some(account)
+            })
+            .collect();
+
+        if self.auth.user.is_some()
+            && !self
+                .login_accounts
+                .iter()
+                .any(|account| account.matches_auth(&self.auth))
+        {
+            self.login_accounts
+                .push(LoginAccount::from_auth(self.auth.clone()));
+        }
+
+        if !self
+            .login_accounts
+            .iter()
+            .any(|account| account.id == self.active_login_id)
+        {
+            self.active_login_id = self
+                .login_accounts
+                .first()
+                .map(|account| account.id.clone())
+                .unwrap_or_default();
+        }
+
+        if let Some(active) = self.active_login_account() {
+            self.auth = active.auth.clone();
+        } else if self.auth.user.is_none() {
+            self.auth = AuthState::default();
+        }
+
         self.accounts = self
             .accounts
             .into_iter()
@@ -158,6 +270,18 @@ impl AppSettings {
         self.accounts
             .iter()
             .find(|account| account.id == self.active_account_id && account.enabled)
+    }
+
+    pub fn active_login_account(&self) -> Option<&LoginAccount> {
+        self.login_accounts
+            .iter()
+            .find(|account| account.id == self.active_login_id)
+    }
+
+    pub fn login_account(&self, id: &str) -> Option<&LoginAccount> {
+        self.login_accounts
+            .iter()
+            .find(|account| account.id == id.trim())
     }
 }
 
@@ -222,7 +346,7 @@ pub fn normalize_api_key(value: impl AsRef<str>) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::AppSettings;
+    use super::{AppSettings, AuthState, AuthUser, LoginAccount};
 
     #[test]
     fn plugin_unlock_is_disabled_by_default() {
@@ -249,5 +373,49 @@ mod tests {
         .expect("settings should deserialize");
 
         assert!(!settings.plugin_enabled);
+    }
+
+    #[test]
+    fn legacy_auth_is_migrated_to_login_accounts() {
+        let settings = AppSettings {
+            auth: test_auth(7, "https://one.example"),
+            ..AppSettings::default()
+        }
+        .normalized();
+
+        assert_eq!(settings.login_accounts.len(), 1);
+        assert_eq!(settings.active_login_id, settings.login_accounts[0].id);
+        assert_eq!(settings.auth.base_url, "https://one.example");
+        assert_eq!(settings.auth.user.as_ref().map(|user| user.id), Some(7));
+    }
+
+    #[test]
+    fn active_login_account_updates_legacy_auth_view() {
+        let first = LoginAccount::from_auth(test_auth(1, "https://first.example"));
+        let second = LoginAccount::from_auth(test_auth(2, "https://second.example"));
+        let settings = AppSettings {
+            active_login_id: second.id.clone(),
+            login_accounts: vec![first, second],
+            ..AppSettings::default()
+        }
+        .normalized();
+
+        assert_eq!(settings.auth.base_url, "https://second.example");
+        assert_eq!(settings.auth.user.as_ref().map(|user| user.id), Some(2));
+    }
+
+    fn test_auth(id: u64, base_url: &str) -> AuthState {
+        AuthState {
+            base_url: base_url.to_string(),
+            user: Some(AuthUser {
+                id,
+                username: format!("user{id}"),
+                display_name: format!("User {id}"),
+                group: "default".to_string(),
+                role: 0,
+                status: 1,
+            }),
+            ..AuthState::default()
+        }
     }
 }

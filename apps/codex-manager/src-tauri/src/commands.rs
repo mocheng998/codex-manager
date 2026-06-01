@@ -1,9 +1,10 @@
 use codex_manager_core::{
-    Account, AppSettings, BackupConfigPreview, CodexApplyResult, CodexConfigView, CodexPathInfo,
-    LaunchRequest, LoginCredentials, LoginPayload, RemoteKeyDecryptPayload, RemoteKeySearchPayload,
-    SettingsStore, apply_account_to_codex, clear_codex_manager_config,
-    launch_codex as launch_codex_core, login_new_api, read_codex_view, read_latest_backup_preview,
-    resolve_codex_path, restart_codex as restart_codex_core, restore_latest_backup,
+    Account, AppSettings, AuthState, BackupConfigPreview, CodexApplyResult, CodexConfigView,
+    CodexPathInfo, LaunchRequest, LoginAccount, LoginCredentials, LoginPayload,
+    RemoteKeyDecryptPayload, RemoteKeySearchPayload, SettingsStore, apply_account_to_codex,
+    check_for_update_with_url, clear_codex_manager_config, launch_codex as launch_codex_core,
+    login_new_api, read_codex_view, read_latest_backup_preview, resolve_codex_path,
+    restart_codex as restart_codex_core, restore_latest_backup,
 };
 use serde::Serialize;
 
@@ -45,6 +46,8 @@ pub struct UpsertAccountRequest {
 pub struct SearchRemoteKeysRequest {
     #[serde(default)]
     pub keyword: String,
+    #[serde(default)]
+    pub login_id: String,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -52,6 +55,8 @@ pub struct SearchRemoteKeysRequest {
 pub struct DecryptRemoteKeyRequest {
     #[serde(default, alias = "id")]
     pub token_id: String,
+    #[serde(default)]
+    pub login_id: String,
 }
 
 #[tauri::command]
@@ -62,6 +67,28 @@ pub fn backend_version() -> CommandResult<VersionPayload> {
             version: env!("CARGO_PKG_VERSION").to_string(),
         },
     )
+}
+
+#[tauri::command]
+pub fn check_update() -> CommandResult<codex_manager_core::UpdateCheck> {
+    let settings = SettingsStore::default().load().unwrap_or_default();
+    match check_for_update_with_url(env!("CARGO_PKG_VERSION"), &settings.update_manifest_url) {
+        Ok(payload) => ok(
+            if payload.update_available {
+                "发现可用更新"
+            } else {
+                "当前已是最新版本"
+            },
+            payload,
+        ),
+        Err(error) => failed(
+            &format!("检查更新失败: {error}"),
+            codex_manager_core::UpdateCheck {
+                current_version: env!("CARGO_PKG_VERSION").to_string(),
+                ..codex_manager_core::UpdateCheck::default()
+            },
+        ),
+    }
 }
 
 #[tauri::command]
@@ -90,6 +117,35 @@ pub fn login_user(credentials: LoginCredentials) -> CommandResult<LoginPayload> 
     match login_new_api(credentials) {
         Ok(payload) => {
             let mut settings = store.load().unwrap_or_default();
+            let mut login_account = settings
+                .login_accounts
+                .iter()
+                .find(|account| account.matches_auth(&payload.auth))
+                .cloned()
+                .unwrap_or_else(|| LoginAccount::from_auth(payload.auth.clone()));
+            login_account.auth = payload.auth.clone();
+
+            if settings
+                .login_accounts
+                .iter()
+                .any(|entry| entry.id == login_account.id)
+            {
+                settings.login_accounts = settings
+                    .login_accounts
+                    .into_iter()
+                    .map(|entry| {
+                        if entry.id == login_account.id {
+                            login_account.clone()
+                        } else {
+                            entry
+                        }
+                    })
+                    .collect();
+            } else {
+                settings.login_accounts.push(login_account.clone());
+            }
+
+            settings.active_login_id = login_account.id;
             settings.auth = payload.auth.clone();
             if let Err(error) = store.save(&settings) {
                 return failed_payload("Login state save failed", error);
@@ -104,9 +160,23 @@ pub fn login_user(credentials: LoginCredentials) -> CommandResult<LoginPayload> 
 pub fn logout_user() -> CommandResult<SettingsPayload> {
     let store = SettingsStore::default();
     let mut settings = store.load().unwrap_or_default();
-    settings.auth.user = None;
-    settings.auth.cookies.clear();
-    settings.auth.updated_at_ms = 0;
+    if settings.active_login_id.is_empty() {
+        settings.login_accounts.clear();
+    } else {
+        let active_login_id = settings.active_login_id.clone();
+        settings
+            .login_accounts
+            .retain(|account| account.id != active_login_id);
+    }
+    settings.active_login_id = settings
+        .login_accounts
+        .first()
+        .map(|account| account.id.clone())
+        .unwrap_or_default();
+    settings.auth = settings
+        .active_login_account()
+        .map(|account| account.auth.clone())
+        .unwrap_or_default();
     match store.save(&settings) {
         Ok(settings) => ok(
             "已退出登录",
@@ -120,6 +190,58 @@ pub fn logout_user() -> CommandResult<SettingsPayload> {
 }
 
 #[tauri::command]
+pub fn activate_login_account(id: String) -> CommandResult<SettingsPayload> {
+    let store = SettingsStore::default();
+    let mut settings = store.load().unwrap_or_default();
+    if settings.login_account(&id).is_none() {
+        return failed_payload("Login account not found", id);
+    }
+    settings.active_login_id = id;
+    settings.auth = settings
+        .active_login_account()
+        .map(|account| account.auth.clone())
+        .unwrap_or_default();
+    match store.save(&settings) {
+        Ok(settings) => ok(
+            "Login account activated",
+            SettingsPayload {
+                settings,
+                settings_path: store.path().to_string_lossy().to_string(),
+            },
+        ),
+        Err(error) => failed_payload("Login account activate failed", error),
+    }
+}
+
+#[tauri::command]
+pub fn delete_login_account(id: String) -> CommandResult<SettingsPayload> {
+    let store = SettingsStore::default();
+    let mut settings = store.load().unwrap_or_default();
+    settings.login_accounts.retain(|account| account.id != id);
+    if settings.active_login_id == id {
+        settings.active_login_id = settings
+            .login_accounts
+            .first()
+            .map(|account| account.id.clone())
+            .unwrap_or_default();
+    }
+    settings.auth = settings
+        .active_login_account()
+        .map(|account| account.auth.clone())
+        .unwrap_or_default();
+    match store.save(&settings) {
+        Ok(settings) => ok(
+            "Login account deleted",
+            SettingsPayload {
+                settings,
+                settings_path: store.path().to_string_lossy().to_string(),
+            },
+        ),
+        Err(error) => failed_payload("Login account delete failed", error),
+    }
+}
+
+#[tauri::command]
 pub fn search_remote_keys(
     request: SearchRemoteKeysRequest,
 ) -> CommandResult<RemoteKeySearchPayload> {
@@ -127,7 +249,8 @@ pub fn search_remote_keys(
         Ok(settings) => settings,
         Err(error) => return failed_payload("Settings load failed", error),
     };
-    match codex_manager_core::search_remote_keys(&settings.auth, &request.keyword) {
+    let auth = select_login_auth(&settings, &request.login_id);
+    match codex_manager_core::search_remote_keys(&auth, &request.keyword) {
         Ok(payload) => ok("远程 KEY 已加载", payload),
         Err(error) => failed_payload("远程 KEY 查询失败", error),
     }
@@ -141,7 +264,8 @@ pub fn decrypt_remote_key(
         Ok(settings) => settings,
         Err(error) => return failed_payload("Settings load failed", error),
     };
-    match codex_manager_core::decrypt_remote_key(&settings.auth, &request.token_id) {
+    let auth = select_login_auth(&settings, &request.login_id);
+    match codex_manager_core::decrypt_remote_key(&auth, &request.token_id) {
         Ok(payload) => ok("KEY 解密成功", payload),
         Err(error) => failed_payload("KEY 解密失败", error),
     }
@@ -338,6 +462,16 @@ fn open_external_url(url: &str) -> anyhow::Result<()> {
             .spawn()
             .map(|_| ())
             .map_err(|error| anyhow::anyhow!("failed to open URL: {error}"))
+    }
+}
+
+fn select_login_auth(settings: &AppSettings, login_id: &str) -> AuthState {
+    if let Some(account) = settings.login_account(login_id) {
+        account.auth.clone()
+    } else if let Some(account) = settings.active_login_account() {
+        account.auth.clone()
+    } else {
+        settings.auth.clone()
     }
 }
 

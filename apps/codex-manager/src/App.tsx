@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import {
+  ChevronDown,
   FileText,
   KeyRound,
   LogOut,
@@ -50,12 +51,21 @@ type AuthState = {
   updatedAtMs: number;
 };
 
+type LoginAccount = {
+  id: string;
+  name: string;
+  auth: AuthState;
+};
+
 type AppSettings = {
   codexAppPath: string;
   activeAccountId: string;
   launchExtraArgs: string[];
   pluginEnabled: boolean;
   auth: AuthState;
+  activeLoginId: string;
+  loginAccounts: LoginAccount[];
+  updateManifestUrl: string;
   accounts: Account[];
 };
 
@@ -123,6 +133,19 @@ type BackupPreviewResult = CommandResult<{
   authJson: string;
 }>;
 
+type BackendVersionResult = CommandResult<{
+  version: string;
+}>;
+
+type UpdateResult = CommandResult<{
+  currentVersion: string;
+  latestVersion: string | null;
+  releaseSummary: string;
+  assetName: string | null;
+  assetUrl: string | null;
+  updateAvailable: boolean;
+}>;
+
 type Route = "account" | "keys" | "market" | "settings";
 type CodexLaunchState = "idle" | "starting" | "started" | "restarting";
 
@@ -147,6 +170,9 @@ const emptySettings: AppSettings = {
   launchExtraArgs: [],
   pluginEnabled: false,
   auth: defaultAuth,
+  activeLoginId: "",
+  loginAccounts: [],
+  updateManifestUrl: "",
   accounts: [],
 };
 
@@ -169,6 +195,7 @@ export function App() {
   const [settings, setSettings] = useState<AppSettings>(emptySettings);
   const [settingsPath, setSettingsPath] = useState("");
   const [loginForm, setLoginForm] = useState(blankLogin);
+  const [expandedLoginId, setExpandedLoginId] = useState("");
   const [manualKeyForm, setManualKeyForm] = useState<ManualKeyForm>(blankManualKey);
   const [manualKeySaving, setManualKeySaving] = useState(false);
   const [remoteKeyword, setRemoteKeyword] = useState("");
@@ -184,28 +211,48 @@ export function App() {
   const [restoreModalOpen, setRestoreModalOpen] = useState(false);
   const [restoreLoading, setRestoreLoading] = useState(false);
   const [codexLaunchState, setCodexLaunchState] = useState<CodexLaunchState>("idle");
+  const [appVersion, setAppVersion] = useState("");
+  const [updateInfo, setUpdateInfo] = useState<UpdateResult | null>(null);
+  const [updateChecking, setUpdateChecking] = useState(false);
 
   const activeAccount = useMemo(
     () => settings.accounts.find((account) => account.id === settings.activeAccountId),
     [settings],
   );
-  const user = settings.auth.user;
+  const activeLoginAccount = useMemo(
+    () => settings.loginAccounts.find((account) => account.id === settings.activeLoginId),
+    [settings],
+  );
+  const user = activeLoginAccount?.auth.user ?? settings.auth.user;
 
   useEffect(() => {
     void refresh();
     void readConfig();
     void detectCodexPath();
+    void loadAppVersion();
   }, []);
 
   useEffect(() => {
-    if (user) void searchRemoteKeys(true);
-  }, [user?.id]);
+    if (!settings.loginAccounts.length) {
+      setExpandedLoginId("");
+      setRemoteKeys([]);
+      return;
+    }
+    if (expandedLoginId && !settings.loginAccounts.some((account) => account.id === expandedLoginId)) {
+      setExpandedLoginId("");
+      setRemoteKeys([]);
+    }
+  }, [settings.loginAccounts, expandedLoginId]);
+
+  useEffect(() => {
+    if (expandedLoginId) void searchRemoteKeys(true, expandedLoginId);
+  }, [expandedLoginId]);
 
   const call = <T,>(command: string, args?: Record<string, unknown>) => invoke<T>(command, args);
 
   async function refresh() {
     const result = await run(() => call<SettingsResult>("load_settings"));
-    if (!result) return;
+    if (!result) return null;
     setSettings(result.settings);
     setSettingsPath(result.settingsPath);
     setLoginForm((current) => ({
@@ -214,15 +261,40 @@ export function App() {
       loginMode: result.settings.auth.loginMode || "newApi",
     }));
     await detectCodexPath();
+    return result.settings;
+  }
+
+  async function loadAppVersion() {
+    const result = await run(() => call<BackendVersionResult>("backend_version"));
+    if (!result) return;
+    setAppVersion(result.version);
+  }
+
+  async function checkAppUpdate() {
+    setUpdateChecking(true);
+    try {
+      const result = await run(() => call<UpdateResult>("check_update"));
+      if (!result) return;
+      setUpdateInfo(result);
+      show(result);
+    } finally {
+      setUpdateChecking(false);
+    }
   }
 
   async function login() {
     const result = await run(() => call<LoginResult>("login_user", { credentials: loginForm }));
     if (!result) return;
-    setSettings((current) => ({ ...current, auth: result.auth }));
     setLoginForm((current) => ({ ...current, password: "" }));
+    const nextSettings = await refresh();
+    const nextLogin = nextSettings?.loginAccounts.find(
+      (account) => account.auth.baseUrl === result.auth.baseUrl && account.auth.user?.id === result.auth.user?.id,
+    );
+    if (nextLogin) {
+      setExpandedLoginId(nextLogin.id);
+      await searchRemoteKeys(true, nextLogin.id);
+    }
     show(result);
-    await searchRemoteKeys(true);
   }
 
   async function logout() {
@@ -233,12 +305,33 @@ export function App() {
     show(result);
   }
 
-  async function searchRemoteKeys(silent = false) {
+  async function activateLoginAccount(loginId: string) {
+    const result = await run(() => call<SettingsResult>("activate_login_account", { id: loginId }));
+    if (!result) return;
+    setSettings(result.settings);
+    setExpandedLoginId(loginId);
+    show({ status: result.status, message: "已切换登录账号" });
+  }
+
+  async function deleteLoginAccount(loginId: string) {
+    const result = await run(() => call<SettingsResult>("delete_login_account", { id: loginId }));
+    if (!result) return;
+    setSettings(result.settings);
+    if (expandedLoginId === loginId) {
+      setRemoteKeys([]);
+      setExpandedLoginId(result.settings.activeLoginId || result.settings.loginAccounts[0]?.id || "");
+    }
+    show({ status: result.status, message: "已删除登录账号" });
+  }
+
+  async function searchRemoteKeys(silent = false, loginId = expandedLoginId) {
+    if (!loginId) return;
+    setRemoteKeys([]);
     setRemoteKeysLoading(true);
     try {
       const result = await run(() =>
         call<RemoteKeySearchResult>("search_remote_keys", {
-          request: { keyword: remoteKeyword },
+          request: { keyword: remoteKeyword, loginId },
         }),
       );
       if (!result) return;
@@ -249,21 +342,25 @@ export function App() {
     }
   }
 
-  async function importRemoteKey(item: RemoteToken, activate: boolean) {
+  async function importRemoteKey(item: RemoteToken, activate: boolean, loginAccount = activeLoginAccount) {
     if (!item.id) return;
+    if (!loginAccount) {
+      setNotice({ status: "failed", message: "请先选择登录账号" });
+      return;
+    }
     setDecryptingId(item.id);
     const result = await run(() =>
       call<RemoteKeyDecryptResult>("decrypt_remote_key", {
-        request: { tokenId: item.id },
+        request: { tokenId: item.id, loginId: loginAccount.id },
       }),
     );
     setDecryptingId("");
     if (!result) return;
 
     const account: Account = {
-      id: `remote-${item.id}`,
+      id: remoteAccountId(item, loginAccount),
       name: item.name || `远程 KEY ${item.id}`,
-      baseUrl: apiBaseUrlForAuth(settings.auth.baseUrl),
+      baseUrl: apiBaseUrlForAuth(loginAccount.auth.baseUrl),
       apiKey: result.apiKey,
       enabled: true,
     };
@@ -277,27 +374,29 @@ export function App() {
     if (activate) {
       await activateAccount(account.id, true);
     } else {
-      show({ status: "ok", message: `已同步 ${account.name} 到 KEY 管理` });
+      show({ status: "ok", message: `已同步 ${account.name} 到本地 KEY 管理` });
     }
   }
 
-  async function syncAllRemoteKeys() {
-    if (!user || !remoteKeys.length) return;
+  async function syncAllRemoteKeys(loginAccount?: LoginAccount) {
+    const targetLogin =
+      loginAccount ?? settings.loginAccounts.find((account) => account.id === expandedLoginId) ?? activeLoginAccount;
+    if (!targetLogin || !remoteKeys.length) return;
     let imported = 0;
     for (const item of remoteKeys) {
       if (!item.id) continue;
-      const existingId = `remote-${item.id}`;
+      const existingId = remoteAccountId(item, targetLogin);
       if (settings.accounts.some((a) => a.id === existingId)) continue;
       const decrypted = await run(() =>
         call<RemoteKeyDecryptResult>("decrypt_remote_key", {
-          request: { tokenId: item.id },
+          request: { tokenId: item.id, loginId: targetLogin.id },
         }),
       );
       if (!decrypted) continue;
       const account: Account = {
         id: existingId,
         name: item.name || `远程 KEY ${item.id}`,
-        baseUrl: apiBaseUrlForAuth(settings.auth.baseUrl),
+        baseUrl: apiBaseUrlForAuth(targetLogin.auth.baseUrl),
         apiKey: decrypted.apiKey,
         enabled: true,
       };
@@ -311,7 +410,10 @@ export function App() {
         imported += 1;
       }
     }
-    show({ status: "ok", message: imported ? `已同步 ${imported} 个远程 KEY` : "没有新的远程 KEY 需要同步" });
+    show({
+      status: "ok",
+      message: imported ? `已同步 ${imported} 个远程 KEY 到本地 KEY 管理` : "没有新的远程 KEY 需要同步到本地 KEY 管理",
+    });
   }
 
   async function saveManualKey() {
@@ -527,10 +629,19 @@ export function App() {
     setNotice({ status: result.status, message: result.message });
   }
 
+  function toggleLoginPanel(loginId: string) {
+    if (expandedLoginId === loginId) {
+      setExpandedLoginId("");
+      setRemoteKeys([]);
+      return;
+    }
+    setExpandedLoginId(loginId);
+  }
+
   const navItems: Array<{ id: Route; label: string; icon: JSX.Element }> = [
-    { id: "keys", label: "免登录配置", icon: <KeyRound size={17} /> },
+    { id: "keys", label: "本地模式", icon: <KeyRound size={17} /> },
     { id: "account", label: "登录配置", icon: <UserRound size={17} /> },
-    { id: "market", label: "商店", icon: <ShoppingBag size={17} /> },
+    { id: "market", label: "技能商店", icon: <ShoppingBag size={17} /> },
     { id: "settings", label: "设置", icon: <Settings size={17} /> },
   ];
   const restarting = codexLaunchState === "restarting";
@@ -599,14 +710,14 @@ export function App() {
 
   function accountView() {
     return (
-      <>
+      <div className="accountPage">
         <header className="pageHead">
           <h1>登录配置</h1>
-          <p>登录后查询远程 KEY，并可同步到本地配置。</p>
+          <p>登录不同平台后会生成账号面板，可展开查询并同步对应平台的 KEY。</p>
         </header>
-        {user ? loggedInCard(user) : loginCard()}
-        {user ? remoteKeySearchCard() : null}
-      </>
+        {loginCard()}
+        {loginAccountsCard()}
+      </div>
     );
   }
 
@@ -614,7 +725,7 @@ export function App() {
     return (
       <>
         <header className="pageHead">
-          <h1>免登录 KEY 配置</h1>
+          <h1>本地模式 KEY 配置</h1>
           {activeAccount ? <span className="activeAccountBadge">当前：{activeAccount.name}</span> : null}
         </header>
         {manualKeyCard()}
@@ -676,7 +787,7 @@ export function App() {
     if (!settings.accounts.length) {
       return (
         <section className="card">
-          <div className="empty">尚未保存 KEY，使用上方表单添加，或在「账户」页登录后同步远程 KEY。</div>
+          <div className="empty">尚未保存 KEY，使用上方表单添加，或在「登录配置」页登录后同步远程 KEY。</div>
         </section>
       );
     }
@@ -687,8 +798,8 @@ export function App() {
             <h2>已保存的 KEY</h2>
           </div>
           {user ? (
-            <button className="ghostButton" onClick={syncAllRemoteKeys} type="button">
-              <RefreshCw size={14} /> 同步登录 KEY
+            <button className="ghostButton" onClick={() => syncAllRemoteKeys()} type="button">
+              <RefreshCw size={14} /> 同步到本地 KEY 管理
             </button>
           ) : null}
         </div>
@@ -783,35 +894,72 @@ export function App() {
     );
   }
 
-  function loggedInCard(currentUser: AuthUser) {
+  function loginAccountsCard() {
+    if (!settings.loginAccounts.length) {
+      return (
+        <section className="card">
+          <div className="empty">还没有登录账号，登录 newApi 平台后会在这里生成账号面板。</div>
+        </section>
+      );
+    }
+
     return (
-      <section className="card profileCard">
-        <div className="avatar">
-          <KeyRound size={30} />
-        </div>
-        <div className="profileText">
-          <h2>{currentUser.displayName || currentUser.username}</h2>
-          <div className="profileMeta">
-            <span className="metaPill">@{currentUser.username}</span>
-            <span className="metaPill">{currentUser.group || "默认组"}</span>
+      <section className="loginAccountList">
+        <div className="sectionHead slimHead">
+          <div>
+            <h2>已登录账号</h2>
           </div>
         </div>
-        <button className="ghostButton" onClick={logout} type="button">
-          <LogOut size={15} /> 退出登录
-        </button>
+        {settings.loginAccounts.map((loginAccount) => {
+          const accountUser = loginAccount.auth.user;
+          const expanded = expandedLoginId === loginAccount.id;
+          const active = settings.activeLoginId === loginAccount.id;
+          return (
+            <article className={`loginPanel ${expanded ? "isExpanded" : ""}`} key={loginAccount.id}>
+              <div className="loginPanelTop">
+                <button
+                  className="loginPanelHeader"
+                  onClick={() => toggleLoginPanel(loginAccount.id)}
+                  type="button"
+                >
+                  <span className="miniIcon">
+                    <UserRound size={16} />
+                  </span>
+                  <span className="loginPanelTitle">
+                    <strong>{accountUser?.displayName || accountUser?.username || loginAccount.name}</strong>
+                    <span>
+                      {loginAccount.auth.baseUrl} · {accountUser?.group || "默认组"}
+                    </span>
+                  </span>
+                  {active ? <span className="activeAccountBadge">当前</span> : null}
+                  <ChevronDown size={17} className={expanded ? "chevronOpen" : ""} />
+                </button>
+                <div className="loginPanelActions">
+                  <button className="ghostButton" onClick={() => activateLoginAccount(loginAccount.id)} type="button" disabled={active}>
+                    设为当前
+                  </button>
+                  <button className="ghostButton dangerText" onClick={() => deleteLoginAccount(loginAccount.id)} type="button">
+                    <Trash2 size={15} /> 删除账号
+                  </button>
+                </div>
+              </div>
+              {expanded ? <div className="loginPanelBody">{remoteKeySearchCard(loginAccount)}</div> : null}
+            </article>
+          );
+        })}
       </section>
     );
   }
 
-  function remoteKeySearchCard() {
+  function remoteKeySearchCard(loginAccount: LoginAccount) {
     return (
       <section className="card keySection">
         <div className="sectionHead">
           <div>
             <h2>远程 KEY</h2>
           </div>
-          <button className="ghostButton" onClick={syncAllRemoteKeys} type="button" disabled={!remoteKeys.length}>
-            <RefreshCw size={14} /> 全部同步
+          <button className="ghostButton" onClick={() => syncAllRemoteKeys(loginAccount)} type="button" disabled={!remoteKeys.length}>
+            <RefreshCw size={14} /> 全部同步到本地 KEY 管理
           </button>
         </div>
         <div className="searchRow">
@@ -822,11 +970,16 @@ export function App() {
               value={remoteKeyword}
               onChange={(event) => setRemoteKeyword(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === "Enter" && !remoteKeysLoading) void searchRemoteKeys();
+                if (event.key === "Enter" && !remoteKeysLoading) void searchRemoteKeys(false, loginAccount.id);
               }}
             />
           </span>
-          <button className="primaryButton" onClick={() => searchRemoteKeys()} type="button" disabled={remoteKeysLoading}>
+          <button
+            className="primaryButton"
+            onClick={() => searchRemoteKeys(false, loginAccount.id)}
+            type="button"
+            disabled={remoteKeysLoading}
+          >
             {remoteKeysLoading ? "查询中" : "查询"}
           </button>
         </div>
@@ -834,7 +987,7 @@ export function App() {
           {remoteKeysLoading ? <div className="empty loadingBox">正在查询 KEY...</div> : null}
           {!remoteKeysLoading && remoteKeys.length === 0 ? <div className="empty">暂无远端 KEY</div> : null}
           {remoteKeys.map((item) => {
-            const localId = `remote-${item.id}`;
+            const localId = remoteAccountId(item, loginAccount);
             const active = settings.activeAccountId === localId;
             const imported = settings.accounts.some((a) => a.id === localId);
             const busy = decryptingId === item.id;
@@ -852,15 +1005,15 @@ export function App() {
                 <code>{maskKey(item.apiKey)}</code>
                 <button
                   className="ghostButton"
-                  onClick={() => importRemoteKey(item, false)}
+                  onClick={() => importRemoteKey(item, false, loginAccount)}
                   type="button"
                   disabled={!item.id || busy || imported}
                 >
-                  {imported ? "已同步" : busy ? "解密中" : "同步"}
+                  {imported ? "已同步到本地" : busy ? "解密中" : "同步到本地 KEY 管理"}
                 </button>
                 <button
                   className={`useButton ${active ? "active" : ""}`}
-                  onClick={() => importRemoteKey(item, true)}
+                  onClick={() => importRemoteKey(item, true, loginAccount)}
                   type="button"
                   disabled={!item.id || busy || active}
                 >
@@ -879,7 +1032,7 @@ export function App() {
     return (
       <>
         <header className="pageHead">
-          <h1>商店</h1>
+          <h1>技能商店</h1>
         </header>
         <section className="card placeholder">脚本市场和扩展推荐入口预留。</section>
       </>
@@ -893,6 +1046,50 @@ export function App() {
         <header className="pageHead">
           <h1>设置</h1>
         </header>
+
+        <section className="settingsGroup">
+          <h2 className="groupTitle">版本更新</h2>
+          <div className="groupCard">
+            <div className="settingRow updateUrlRow">
+              <div className="settingLabel">
+                <h3>更新检查地址</h3>
+                <p>留空时使用 GitHub；也可以填你自己的公开 latest.json 地址。</p>
+              </div>
+              <div className="updateUrlBox">
+                <input
+                  placeholder="https://example.com/codex-manager/latest.json"
+                  value={settings.updateManifestUrl || ""}
+                  onChange={(event) => setSettings({ ...settings, updateManifestUrl: event.target.value })}
+                />
+                <button className="ghostButton" onClick={saveGlobalSettings} type="button">
+                  保存
+                </button>
+              </div>
+            </div>
+            <div className="settingRow versionRow">
+              <div className="settingLabel">
+                <h3>Codex Manager</h3>
+                <p>{updateStatusText()}</p>
+              </div>
+              <div className="versionInfo">
+                <span className="versionBadge">本地版本 v{appVersion || updateInfo?.currentVersion || "-"}</span>
+                <span className={`versionBadge ${updateInfo?.updateAvailable ? "hasUpdate" : ""}`}>
+                  最新版本 {updateInfo?.latestVersion ? `v${trimVersionPrefix(updateInfo.latestVersion)}` : "未检查"}
+                </span>
+                <button className="ghostButton" onClick={checkAppUpdate} type="button" disabled={updateChecking}>
+                  <RefreshCw size={14} className={updateChecking ? "spin" : ""} />
+                  {updateChecking ? "检查中" : "检查更新"}
+                </button>
+              </div>
+            </div>
+            {updateInfo?.releaseSummary || updateInfo?.assetName ? (
+              <div className="versionDetails">
+                {updateInfo.assetName ? <span>安装包：{updateInfo.assetName}</span> : null}
+                {updateInfo.releaseSummary ? <pre>{updateInfo.releaseSummary}</pre> : null}
+              </div>
+            ) : null}
+          </div>
+        </section>
 
         <section className="settingsGroup">
           <h2 className="groupTitle">Codex 运行</h2>
@@ -1006,6 +1203,16 @@ export function App() {
     );
   }
 
+  function updateStatusText() {
+    if (updateChecking) return "正在检查 GitHub Release 最新版本...";
+    if (!updateInfo) return "显示当前本地版本，可手动检查是否有新版本。";
+    if (updateInfo.status === "failed") return updateInfo.message;
+    if (updateInfo.updateAvailable) {
+      return `发现新版本 ${updateInfo.latestVersion ? `v${trimVersionPrefix(updateInfo.latestVersion)}` : ""}`;
+    }
+    return "当前已是最新版本。";
+  }
+
   function configModal() {
     return (
       <div className="modalBackdrop" onClick={() => setConfigModalOpen(false)}>
@@ -1079,6 +1286,14 @@ function Preview({ title, path, text }: { title: string; path?: string; text?: s
 function apiBaseUrlForAuth(baseUrl: string) {
   const clean = (baseUrl || "https://yiciyuan.one").replace(/\/+$/, "");
   return clean.endsWith("/v1") ? clean : `${clean}/v1`;
+}
+
+function trimVersionPrefix(value: string) {
+  return value.trim().replace(/^[vV]/, "");
+}
+
+function remoteAccountId(item: RemoteToken, loginAccount: LoginAccount) {
+  return `remote-${loginAccount.id}-${item.id}`;
 }
 
 function maskKey(value: string) {

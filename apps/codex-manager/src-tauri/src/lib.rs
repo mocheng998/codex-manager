@@ -5,10 +5,13 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             commands::backend_version,
+            commands::check_update,
             commands::load_settings,
             commands::save_settings,
             commands::login_user,
             commands::logout_user,
+            commands::activate_login_account,
+            commands::delete_login_account,
             commands::search_remote_keys,
             commands::decrypt_remote_key,
             commands::upsert_account,

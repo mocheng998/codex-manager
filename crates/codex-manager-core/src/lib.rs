@@ -5,6 +5,7 @@ pub mod paths;
 pub mod plugin_unlock;
 pub mod remote;
 pub mod settings;
+pub mod update;
 
 pub use app_paths::{CodexPathInfo, resolve_codex_path};
 pub use codex_config::{
@@ -16,4 +17,5 @@ pub use remote::{
     LoginCredentials, LoginPayload, RemoteKeyDecryptPayload, RemoteKeySearchPayload, RemoteToken,
     decrypt_remote_key, login_new_api, search_remote_keys,
 };
-pub use settings::{Account, AppSettings, SettingsStore};
+pub use settings::{Account, AppSettings, AuthState, LoginAccount, SettingsStore};
+pub use update::{UpdateCheck, check_for_update, check_for_update_with_url};
