@@ -73,6 +73,7 @@ jobs:
         shell: bash
         env:
           RELEASE_TAG: ${{ github.ref_name }}
+          CLOUDFLARE_DOWNLOAD_BASE_URL: ""
         run: |
           shopt -s nullglob globstar
           files=(
@@ -83,11 +84,6 @@ jobs:
           if [ ${#files[@]} -eq 0 ]; then
             echo "No installer files found"
             exit 1
-          fi
-
-          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ] || [ -z "$CLOUDFLARE_R2_BUCKET" ] || [ -z "$CLOUDFLARE_DOWNLOAD_BASE_URL" ]; then
-            echo "Cloudflare R2 is not fully configured; latest.json will point to GitHub Release assets."
-            unset CLOUDFLARE_DOWNLOAD_BASE_URL
           fi
 
           node scripts/generate-latest-json.mjs "${files[@]}"
@@ -129,7 +125,10 @@ jobs:
 
       - name: Upload bundle to Cloudflare R2
         if: startsWith(github.ref, 'refs/tags/') && env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != '' && env.CLOUDFLARE_R2_BUCKET != '' && env.CLOUDFLARE_DOWNLOAD_BASE_URL != ''
+        continue-on-error: true
         shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
         run: |
           shopt -s nullglob globstar
           prefix="${CLOUDFLARE_DOWNLOAD_PATH_PREFIX:-codex-manager}"
@@ -145,6 +144,8 @@ jobs:
             npx wrangler r2 object put "$CLOUDFLARE_R2_BUCKET/$key" --file "$file" --remote
           done
 
+          LATEST_JSON_PATH=target/release/latest.r2.json node scripts/generate-latest-json.mjs "${files[@]}"
+
           latest_installer=""
           for file in target/release/bundle/**/*.msi; do
             latest_installer="$file"
@@ -155,5 +156,5 @@ jobs:
             npx wrangler r2 object put "$CLOUDFLARE_R2_BUCKET/$prefix/latest/codex-manager-windows-$GITHUB_REF_NAME.msi" --file "$latest_installer" --remote
           fi
 
-          npx wrangler r2 object put "$CLOUDFLARE_R2_BUCKET/$prefix/releases/$GITHUB_REF_NAME/latest.json" --file target/release/latest.json --content-type "application/json; charset=utf-8" --remote
-          npx wrangler r2 object put "$CLOUDFLARE_R2_BUCKET/$prefix/latest.json" --file target/release/latest.json --content-type "application/json; charset=utf-8" --remote
+          npx wrangler r2 object put "$CLOUDFLARE_R2_BUCKET/$prefix/releases/$GITHUB_REF_NAME/latest.json" --file target/release/latest.r2.json --content-type "application/json; charset=utf-8" --remote
+          npx wrangler r2 object put "$CLOUDFLARE_R2_BUCKET/$prefix/latest.json" --file target/release/latest.r2.json --content-type "application/json; charset=utf-8" --remote
