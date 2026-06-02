@@ -6,7 +6,7 @@
 
 ```text
 https://downloads.yuciyuan.top/codex-manager/latest.json
-https://downloads.yuciyuan.top/codex-manager/releases/v1.0.13/Codex%20Manager_1.0.13_x64_en-US.msi
+https://downloads.yuciyuan.top/codex-manager/releases/v1.0.15/Codex%20Manager_1.0.15_x64_en-US.msi
 ```
 
 `latest.json` 会指向当前最新版本的安装包，应用更新检查可以读取这个地址，避免依赖 GitHub。
@@ -41,8 +41,8 @@ CLOUDFLARE_DOWNLOAD_PATH_PREFIX=codex-manager
 推送 tag 后会自动构建、上传 GitHub Release，并在 Cloudflare 配置完整时同步到 R2：
 
 ```powershell
-git tag v1.0.13
-git push origin v1.0.13
+git tag v1.0.15
+git push origin v1.0.15
 ```
 
 构建完成后检查：
