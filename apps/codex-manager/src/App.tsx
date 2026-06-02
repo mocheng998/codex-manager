@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import {
   ChevronDown,
+  Download,
   FileText,
   KeyRound,
   LogOut,
@@ -146,6 +147,12 @@ type UpdateResult = CommandResult<{
   updateAvailable: boolean;
 }>;
 
+type InstallUpdateResult = CommandResult<{
+  assetName: string;
+  assetUrl: string;
+  installerPath: string;
+}>;
+
 type Route = "account" | "keys" | "market" | "settings";
 type CodexLaunchState = "idle" | "starting" | "started" | "restarting";
 
@@ -214,6 +221,7 @@ export function App() {
   const [appVersion, setAppVersion] = useState("");
   const [updateInfo, setUpdateInfo] = useState<UpdateResult | null>(null);
   const [updateChecking, setUpdateChecking] = useState(false);
+  const [updateInstalling, setUpdateInstalling] = useState(false);
 
   const activeAccount = useMemo(
     () => settings.accounts.find((account) => account.id === settings.activeAccountId),
@@ -279,6 +287,29 @@ export function App() {
       show(result);
     } finally {
       setUpdateChecking(false);
+    }
+  }
+
+  async function installLatestUpdate() {
+    if (!updateInfo?.assetUrl) {
+      setNotice({ status: "failed", message: "没有可用的安装包下载地址" });
+      return;
+    }
+    setUpdateInstalling(true);
+    try {
+      const result = await run(() =>
+        call<InstallUpdateResult>("install_latest_update", {
+          request: {
+            assetName: updateInfo.assetName || "",
+            assetUrl: updateInfo.assetUrl,
+            latestVersion: updateInfo.latestVersion || "",
+          },
+        }),
+      );
+      if (!result) return;
+      show(result);
+    } finally {
+      setUpdateInstalling(false);
     }
   }
 
@@ -518,14 +549,6 @@ export function App() {
     } finally {
       setRestoreLoading(false);
     }
-  }
-
-  async function saveGlobalSettings() {
-    const result = await run(() => call<SettingsResult>("save_settings", { settings }));
-    if (!result) return;
-    setSettings(result.settings);
-    setSettingsPath(result.settingsPath);
-    show(result);
   }
 
   async function togglePlugin() {
@@ -1070,6 +1093,25 @@ export function App() {
                   <RefreshCw size={14} className={updateChecking ? "spin" : ""} />
                   {updateChecking ? "检查中" : "检查更新"}
                 </button>
+                {updateInfo?.updateAvailable ? (
+                  <button
+                    className="primaryButton"
+                    onClick={installLatestUpdate}
+                    type="button"
+                    disabled={updateInstalling || !updateInfo.assetUrl}
+                    title={updateInfo.assetUrl ? "下载并打开最新安装包" : "当前版本没有安装包下载地址"}
+                  >
+                    {updateInstalling ? (
+                      <>
+                        <RefreshCw size={14} className="spin" /> 更新中
+                      </>
+                    ) : (
+                      <>
+                        <Download size={14} /> 立即更新
+                      </>
+                    )}
+                  </button>
+                ) : null}
               </div>
             </div>
             {updateInfo?.releaseSummary || updateInfo?.assetName ? (

@@ -141,7 +141,7 @@ jobs:
           done
 
           if [ -n "$latest_installer" ]; then
-            npx wrangler r2 object put "$CLOUDFLARE_R2_BUCKET/$prefix/latest/codex-manager-windows-latest.msi" --file "$latest_installer" --remote
+            npx wrangler r2 object put "$CLOUDFLARE_R2_BUCKET/$prefix/latest/codex-manager-windows-$GITHUB_REF_NAME.msi" --file "$latest_installer" --remote
           fi
 
           npx wrangler r2 object put "$CLOUDFLARE_R2_BUCKET/$prefix/releases/$GITHUB_REF_NAME/latest.json" --file target/release/latest.json --content-type "application/json; charset=utf-8" --remote

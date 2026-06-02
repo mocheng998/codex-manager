@@ -7,6 +7,7 @@ use codex_manager_core::{
     restart_codex as restart_codex_core, restore_latest_backup,
 };
 use serde::Serialize;
+use std::time::Duration;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -59,6 +60,24 @@ pub struct DecryptRemoteKeyRequest {
     pub login_id: String,
 }
 
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstallUpdateRequest {
+    #[serde(default)]
+    pub asset_name: String,
+    pub asset_url: String,
+    #[serde(default)]
+    pub latest_version: String,
+}
+
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstallUpdatePayload {
+    pub asset_name: String,
+    pub asset_url: String,
+    pub installer_path: String,
+}
+
 #[tauri::command]
 pub fn backend_version() -> CommandResult<VersionPayload> {
     ok(
@@ -88,6 +107,14 @@ pub fn check_update() -> CommandResult<codex_manager_core::UpdateCheck> {
                 ..codex_manager_core::UpdateCheck::default()
             },
         ),
+    }
+}
+
+#[tauri::command]
+pub fn install_latest_update(request: InstallUpdateRequest) -> CommandResult<InstallUpdatePayload> {
+    match download_and_open_update(&request) {
+        Ok(payload) => ok("已下载安装包，请按安装向导完成更新", payload),
+        Err(error) => failed_payload("更新失败", error),
     }
 }
 
@@ -465,6 +492,117 @@ fn open_external_url(url: &str) -> anyhow::Result<()> {
     }
 }
 
+fn download_and_open_update(request: &InstallUpdateRequest) -> anyhow::Result<InstallUpdatePayload> {
+    let asset_url = request.asset_url.trim();
+    if asset_url.is_empty() {
+        anyhow::bail!("没有可用的安装包下载地址");
+    }
+
+    let asset_name = update_asset_name(&request.asset_name, asset_url, &request.latest_version);
+    let update_dir = std::env::temp_dir().join("CodexManager").join("updates");
+    std::fs::create_dir_all(&update_dir)?;
+    let installer_path = update_dir.join(&asset_name);
+
+    let mut response = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(180))
+        .user_agent(format!("Codex Manager/{}", env!("CARGO_PKG_VERSION")))
+        .build()?
+        .get(asset_url)
+        .send()?
+        .error_for_status()?;
+    let mut file = std::fs::File::create(&installer_path)?;
+    response.copy_to(&mut file)?;
+
+    let installer_path_text = installer_path.to_string_lossy().to_string();
+    open_external_url(&installer_path_text)?;
+    Ok(InstallUpdatePayload {
+        asset_name,
+        asset_url: asset_url.to_string(),
+        installer_path: installer_path_text,
+    })
+}
+
+fn update_asset_name(asset_name: &str, asset_url: &str, latest_version: &str) -> String {
+    let from_name = asset_name.trim();
+    let raw = if from_name.is_empty() {
+        asset_url
+            .split('?')
+            .next()
+            .and_then(|value| value.rsplit('/').next())
+            .unwrap_or_default()
+    } else {
+        from_name
+    };
+    let sanitized = sanitize_file_name(raw);
+    let version = normalized_download_version(latest_version);
+    if sanitized.is_empty() && version.is_empty() {
+        "codex-manager-windows-update.msi".to_string()
+    } else if sanitized.is_empty() {
+        format!("codex-manager-windows-{version}.msi")
+    } else if version.is_empty() || file_name_has_version(&sanitized, &version) {
+        sanitized
+    } else if sanitized.to_ascii_lowercase().contains("latest") {
+        replace_latest_token(&sanitized, &version)
+    } else {
+        append_version_to_file_name(&sanitized, &version)
+    }
+}
+
+fn normalized_download_version(value: &str) -> String {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        String::new()
+    } else if trimmed.starts_with(['v', 'V']) {
+        format!("v{}", trimmed.trim_start_matches(['v', 'V']))
+    } else {
+        format!("v{trimmed}")
+    }
+}
+
+fn file_name_has_version(file_name: &str, version: &str) -> bool {
+    let without_v = version.trim_start_matches(['v', 'V']);
+    let lower = file_name.to_ascii_lowercase();
+    lower.contains(&version.to_ascii_lowercase()) || lower.contains(&without_v.to_ascii_lowercase())
+}
+
+fn append_version_to_file_name(file_name: &str, version: &str) -> String {
+    match file_name.rsplit_once('.') {
+        Some((stem, ext)) if !stem.is_empty() && !ext.is_empty() => format!("{stem}-{version}.{ext}"),
+        _ => format!("{file_name}-{version}"),
+    }
+}
+
+fn replace_latest_token(file_name: &str, version: &str) -> String {
+    let mut output = String::with_capacity(file_name.len() + version.len());
+    let mut rest = file_name;
+    loop {
+        let lower = rest.to_ascii_lowercase();
+        let Some(index) = lower.find("latest") else {
+            output.push_str(rest);
+            break;
+        };
+        output.push_str(&rest[..index]);
+        output.push_str(version);
+        rest = &rest[index + "latest".len()..];
+    }
+    output
+}
+
+fn sanitize_file_name(value: &str) -> String {
+    value
+        .chars()
+        .map(|ch| {
+            if ch.is_control() || matches!(ch, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*') {
+                '_'
+            } else {
+                ch
+            }
+        })
+        .collect::<String>()
+        .trim_matches([' ', '.'])
+        .to_string()
+}
+
 fn select_login_auth(settings: &AppSettings, login_id: &str) -> AuthState {
     if let Some(account) = settings.login_account(login_id) {
         account.auth.clone()
@@ -532,5 +670,46 @@ fn failed<T: Serialize>(message: &str, payload: T) -> CommandResult<T> {
         status: "failed".to_string(),
         message: message.to_string(),
         payload,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::update_asset_name;
+
+    #[test]
+    fn update_asset_name_replaces_latest_with_version() {
+        assert_eq!(
+            update_asset_name(
+                "codex-manager-windows-latest.msi",
+                "https://example.test/codex-manager-windows-latest.msi",
+                "v1.0.15",
+            ),
+            "codex-manager-windows-v1.0.15.msi"
+        );
+    }
+
+    #[test]
+    fn update_asset_name_appends_version_when_missing() {
+        assert_eq!(
+            update_asset_name(
+                "codex-manager-windows.msi",
+                "https://example.test/codex-manager-windows.msi",
+                "1.0.15",
+            ),
+            "codex-manager-windows-v1.0.15.msi"
+        );
+    }
+
+    #[test]
+    fn update_asset_name_keeps_existing_version() {
+        assert_eq!(
+            update_asset_name(
+                "Codex Manager_1.0.15_x64_en-US.msi",
+                "https://example.test/Codex%20Manager_1.0.15_x64_en-US.msi",
+                "v1.0.15",
+            ),
+            "Codex Manager_1.0.15_x64_en-US.msi"
+        );
     }
 }
