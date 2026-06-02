@@ -27,6 +27,11 @@ codex-manager/
 - Codex auth: `~/.codex/auth.json`
 - Backups: platform data directory under `CodexManager/backups`
 
+## Installer
+
+- Windows MSI uses the WiX install directory dialog, so users can choose the install location from the setup wizard.
+- The MSI upgrade code is pinned in `tauri.conf.json` to keep upgrades tied to the same installed app.
+
 ## Development
 
 ```powershell
@@ -41,7 +46,7 @@ cargo check --workspace
 
 ## Release
 
-V1 package version is `1.0.13`.
+V1 package version is `1.0.14`.
 
 ```powershell
 cd apps/codex-manager
