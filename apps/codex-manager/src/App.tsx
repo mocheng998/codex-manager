@@ -158,7 +158,7 @@ type ManualKeyForm = {
 
 const defaultAuth: AuthState = {
   loginMode: "newApi",
-  baseUrl: "https://yiciyuan.one",
+  baseUrl: "",
   user: null,
   cookies: [],
   updatedAtMs: 0,
@@ -178,7 +178,7 @@ const emptySettings: AppSettings = {
 
 const blankLogin = {
   loginMode: "newApi",
-  baseUrl: "https://yiciyuan.one",
+  baseUrl: "",
   username: "",
   password: "",
 };
@@ -257,7 +257,7 @@ export function App() {
     setSettingsPath(result.settingsPath);
     setLoginForm((current) => ({
       ...current,
-      baseUrl: result.settings.auth.baseUrl || current.baseUrl,
+      baseUrl: result.settings.auth.user ? result.settings.auth.baseUrl : current.baseUrl,
       loginMode: result.settings.auth.loginMode || "newApi",
     }));
     await detectCodexPath();
@@ -283,7 +283,12 @@ export function App() {
   }
 
   async function login() {
-    const result = await run(() => call<LoginResult>("login_user", { credentials: loginForm }));
+    const baseUrl = loginForm.baseUrl.trim();
+    if (!baseUrl) {
+      setNotice({ status: "failed", message: "请填写服务地址" });
+      return;
+    }
+    const result = await run(() => call<LoginResult>("login_user", { credentials: { ...loginForm, baseUrl } }));
     if (!result) return;
     setLoginForm((current) => ({ ...current, password: "" }));
     const nextSettings = await refresh();
@@ -865,6 +870,7 @@ export function App() {
           <label>
             服务地址
             <input
+              placeholder="https://中转地址"
               value={loginForm.baseUrl}
               onChange={(event) => setLoginForm({ ...loginForm, baseUrl: event.target.value })}
             />
@@ -1050,22 +1056,6 @@ export function App() {
         <section className="settingsGroup">
           <h2 className="groupTitle">版本更新</h2>
           <div className="groupCard">
-            <div className="settingRow updateUrlRow">
-              <div className="settingLabel">
-                <h3>更新检查地址</h3>
-                <p>留空时使用 Cloudflare；GitHub 作为兜底源，也可以填你自己的公开 latest.json 地址。</p>
-              </div>
-              <div className="updateUrlBox">
-                <input
-                  placeholder="https://downloads.yuciyuan.top/codex-manager/latest.json"
-                  value={settings.updateManifestUrl || ""}
-                  onChange={(event) => setSettings({ ...settings, updateManifestUrl: event.target.value })}
-                />
-                <button className="ghostButton" onClick={saveGlobalSettings} type="button">
-                  保存
-                </button>
-              </div>
-            </div>
             <div className="settingRow versionRow">
               <div className="settingLabel">
                 <h3>Codex Manager</h3>
@@ -1284,7 +1274,8 @@ function Preview({ title, path, text }: { title: string; path?: string; text?: s
 }
 
 function apiBaseUrlForAuth(baseUrl: string) {
-  const clean = (baseUrl || "https://yiciyuan.one").replace(/\/+$/, "");
+  const clean = baseUrl.replace(/\/+$/, "");
+  if (!clean) return "";
   return clean.endsWith("/v1") ? clean : `${clean}/v1`;
 }
 

@@ -982,17 +982,6 @@ pre {
   align-items: start;
 }
 
-.updateUrlRow {
-  align-items: start;
-}
-
-.updateUrlBox {
-  min-width: min(520px, 48vw);
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
-}
-
 .versionInfo {
   min-width: 0;
   display: flex;
@@ -1352,9 +1341,4 @@ pre {
     justify-content: flex-start;
   }
 
-  .updateUrlBox {
-    min-width: 0;
-    width: 100%;
-    grid-template-columns: 1fr;
-  }
 }
