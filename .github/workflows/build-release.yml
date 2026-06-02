@@ -70,6 +70,10 @@ jobs:
           fi
 
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ] || [ -z "$CLOUDFLARE_R2_BUCKET" ] || [ -z "$CLOUDFLARE_DOWNLOAD_BASE_URL" ]; then
+            if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+              echo "Cloudflare R2 is not fully configured. Required secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_R2_BUCKET, CLOUDFLARE_DOWNLOAD_BASE_URL."
+              exit 1
+            fi
             echo "Cloudflare R2 is not fully configured; latest.json will point to GitHub Release assets."
             unset CLOUDFLARE_DOWNLOAD_BASE_URL
           fi
