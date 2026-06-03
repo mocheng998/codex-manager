@@ -124,13 +124,18 @@ jobs:
           gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber
 
       - name: Upload bundle to Cloudflare R2
-        if: startsWith(github.ref, 'refs/tags/') && env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != '' && env.CLOUDFLARE_R2_BUCKET != '' && env.CLOUDFLARE_DOWNLOAD_BASE_URL != ''
-        continue-on-error: true
+        if: (startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch') && env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != '' && env.CLOUDFLARE_R2_BUCKET != '' && env.CLOUDFLARE_DOWNLOAD_BASE_URL != ''
         shell: bash
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
         run: |
           shopt -s nullglob globstar
+          release_tag="$GITHUB_REF_NAME"
+          if [ "$GITHUB_REF_TYPE" != "tag" ]; then
+            app_version="$(node -p "require('./apps/codex-manager/src-tauri/tauri.conf.json').version")"
+            release_tag="v$app_version"
+          fi
+          export RELEASE_TAG="$release_tag"
+          echo "Uploading Cloudflare R2 assets for $release_tag"
+
           prefix="${CLOUDFLARE_DOWNLOAD_PATH_PREFIX:-codex-manager}"
           prefix="${prefix#/}"
           prefix="${prefix%/}"
@@ -140,7 +145,7 @@ jobs:
           )
 
           for file in "${files[@]}"; do
-            key="$prefix/releases/$GITHUB_REF_NAME/$(basename "$file")"
+            key="$prefix/releases/$release_tag/$(basename "$file")"
             npx wrangler r2 object put "$CLOUDFLARE_R2_BUCKET/$key" --file "$file" --remote
           done
 
@@ -153,9 +158,12 @@ jobs:
           done
 
           if [ -n "$latest_installer" ]; then
-            npx wrangler r2 object put "$CLOUDFLARE_R2_BUCKET/$prefix/latest/codex-manager-windows-$GITHUB_REF_NAME.msi" --file "$latest_installer" --remote
+            npx wrangler r2 object put "$CLOUDFLARE_R2_BUCKET/$prefix/latest/codex-manager-windows-$release_tag.msi" --file "$latest_installer" --remote
             npx wrangler r2 object put "$CLOUDFLARE_R2_BUCKET/$prefix/latest/codex-manager-windows-latest.msi" --file "$latest_installer" --remote
+          else
+            echo "No MSI installer found for Cloudflare latest upload"
+            exit 1
           fi
 
-          npx wrangler r2 object put "$CLOUDFLARE_R2_BUCKET/$prefix/releases/$GITHUB_REF_NAME/latest.json" --file target/release/latest.r2.json --content-type "application/json; charset=utf-8" --remote
+          npx wrangler r2 object put "$CLOUDFLARE_R2_BUCKET/$prefix/releases/$release_tag/latest.json" --file target/release/latest.r2.json --content-type "application/json; charset=utf-8" --remote
           npx wrangler r2 object put "$CLOUDFLARE_R2_BUCKET/$prefix/latest.json" --file target/release/latest.r2.json --content-type "application/json; charset=utf-8" --remote
