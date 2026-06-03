@@ -153,6 +153,28 @@ type InstallUpdateResult = CommandResult<{
   installerPath: string;
 }>;
 
+type ProviderSyncResult = CommandResult<{
+  syncStatus: "skipped" | "synced" | string;
+  targetProvider: string;
+  backupDir: string | null;
+  changedSessionFiles: number;
+  skippedLockedRolloutFiles: string[];
+  sqliteRowsUpdated: number;
+  sqliteProviderRowsUpdated: number;
+  sqliteUserEventRowsUpdated: number;
+  sqliteCwdRowsUpdated: number;
+  updatedWorkspaceRoots: number;
+  encryptedContentWarning: string | null;
+  syncMessage: string;
+}>;
+
+type CodexPreferenceResult = CommandResult<{
+  configPath: string;
+  backupPath: string;
+  localeOverride: string;
+  developerInstructions: string;
+}>;
+
 type Route = "account" | "keys" | "market" | "settings";
 type CodexLaunchState = "idle" | "starting" | "started" | "restarting";
 
@@ -197,6 +219,9 @@ const blankManualKey: ManualKeyForm = {
   apiKey: "",
 };
 
+const defaultChineseInstructions =
+  "请始终使用简体中文回答，除非我明确要求使用其他语言。代码、命令、错误信息、配置项和专有名词保持原文。";
+
 export function App() {
   const [route, setRoute] = useState<Route>("keys");
   const [settings, setSettings] = useState<AppSettings>(emptySettings);
@@ -222,6 +247,14 @@ export function App() {
   const [updateInfo, setUpdateInfo] = useState<UpdateResult | null>(null);
   const [updateChecking, setUpdateChecking] = useState(false);
   const [updateInstalling, setUpdateInstalling] = useState(false);
+  const [sessionRepairing, setSessionRepairing] = useState(false);
+  const [sessionRepairResult, setSessionRepairResult] = useState<ProviderSyncResult | null>(null);
+  const [codexPreferences, setCodexPreferences] = useState<CodexPreferenceResult | null>(null);
+  const [codexPreferenceForm, setCodexPreferenceForm] = useState({
+    localeOverride: "",
+    developerInstructions: "",
+  });
+  const [codexPreferenceSaving, setCodexPreferenceSaving] = useState(false);
 
   const activeAccount = useMemo(
     () => settings.accounts.find((account) => account.id === settings.activeAccountId),
@@ -236,6 +269,7 @@ export function App() {
   useEffect(() => {
     void refresh();
     void readConfig();
+    void readCodexPreferences();
     void detectCodexPath();
     void loadAppVersion();
   }, []);
@@ -572,6 +606,51 @@ export function App() {
     });
   }
 
+  async function repairHistoricalSessions() {
+    if (sessionRepairing) return;
+    setSessionRepairing(true);
+    setNotice({ status: "ok", message: "正在修复历史会话..." });
+    try {
+      const result = await run(() => call<ProviderSyncResult>("repair_historical_sessions"));
+      if (!result) return;
+      setSessionRepairResult(result);
+      show(result);
+    } finally {
+      setSessionRepairing(false);
+    }
+  }
+
+  async function readCodexPreferences() {
+    const result = await run(() => call<CodexPreferenceResult>("read_codex_preferences"));
+    if (!result) return;
+    setCodexPreferences(result);
+    setCodexPreferenceForm({
+      localeOverride: result.localeOverride || "",
+      developerInstructions: result.developerInstructions || "",
+    });
+  }
+
+  async function saveCodexPreferences() {
+    setCodexPreferenceSaving(true);
+    try {
+      const result = await run(() =>
+        call<CodexPreferenceResult>("save_codex_preferences", {
+          preferences: codexPreferenceForm,
+        }),
+      );
+      if (!result) return;
+      setCodexPreferences(result);
+      setCodexPreferenceForm({
+        localeOverride: result.localeOverride || "",
+        developerInstructions: result.developerInstructions || "",
+      });
+      show(result);
+      await readConfig();
+    } finally {
+      setCodexPreferenceSaving(false);
+    }
+  }
+
   async function installCodex() {
     const result = await run(() => call<CommandResult<Record<string, never>>>("open_codex_install_page"));
     if (result) show(result);
@@ -654,7 +733,7 @@ export function App() {
   }
 
   function show(result: { status: Status; message: string }) {
-    setNotice({ status: result.status, message: result.message });
+    setNotice({ status: result.status || "ok", message: result.message || "操作完成" });
   }
 
   function toggleLoginPanel(loginId: string) {
@@ -1070,6 +1149,9 @@ export function App() {
 
   function settingsView() {
     const codexBusy = codexLaunchState === "starting" || codexLaunchState === "restarting";
+    const skippedLockedRolloutFiles = Array.isArray(sessionRepairResult?.skippedLockedRolloutFiles)
+      ? sessionRepairResult.skippedLockedRolloutFiles
+      : [];
     return (
       <>
         <header className="pageHead">
@@ -1192,6 +1274,64 @@ export function App() {
         <section className="settingsGroup">
           <h2 className="groupTitle">增强</h2>
           <div className="groupCard">
+            <div className="settingRow preferenceRow">
+              <div className="settingLabel">
+                <h3>Codex 语言和默认指令</h3>
+                <p>写入 Codex 的 config.toml，语言影响应用界面，开发者指令影响默认回复习惯。</p>
+                <div className="preferenceGrid">
+                  <label>
+                    <span>界面语言</span>
+                    <select
+                      value={codexPreferenceForm.localeOverride}
+                      onChange={(event) => {
+                        const localeOverride = event.currentTarget.value;
+                        setCodexPreferenceForm((current) => ({
+                          ...current,
+                          localeOverride,
+                        }));
+                      }}
+                    >
+                      <option value="">自动检测</option>
+                      <option value="zh-CN">中文（中国）</option>
+                      <option value="en-US">English (US)</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>developer_instructions</span>
+                    <textarea
+                      value={codexPreferenceForm.developerInstructions}
+                      onChange={(event) => {
+                        const developerInstructions = event.currentTarget.value;
+                        setCodexPreferenceForm((current) => ({
+                          ...current,
+                          developerInstructions,
+                        }));
+                      }}
+                      placeholder="例如：请始终使用简体中文回答，除非我明确要求使用其他语言。"
+                    />
+                  </label>
+                </div>
+                {codexPreferences?.configPath ? <p>配置文件：{codexPreferences.configPath}</p> : null}
+              </div>
+              <div className="settingActions preferenceActions">
+                <button
+                  className="ghostButton"
+                  onClick={() =>
+                    setCodexPreferenceForm((current) => ({
+                      ...current,
+                      developerInstructions: defaultChineseInstructions,
+                    }))
+                  }
+                  type="button"
+                >
+                  默认中文回复
+                </button>
+                <button className="primaryButton" onClick={saveCodexPreferences} type="button" disabled={codexPreferenceSaving}>
+                  <RefreshCw size={15} className={codexPreferenceSaving ? "spin" : ""} />
+                  {codexPreferenceSaving ? "保存中" : "保存"}
+                </button>
+              </div>
+            </div>
             <div className="settingRow">
               <div className="settingLabel">
                 <h3>解锁插件</h3>
@@ -1206,6 +1346,28 @@ export function App() {
                 type="button"
               >
                 <span />
+              </button>
+            </div>
+            <div className="settingRow sessionRepairRow">
+              <div className="settingLabel">
+                <h3>修复历史会话</h3>
+                <p>同步本地 rollout 与 state_5.sqlite 的 provider 标记，切换账号或 API 模式后让旧会话重新可见。</p>
+                {sessionRepairResult ? (
+                  <div className="repairSummary">
+                    <span>目标：{sessionRepairResult.targetProvider || "openai"}</span>
+                    <span>会话文件：{sessionRepairResult.changedSessionFiles}</span>
+                    <span>索引行：{sessionRepairResult.sqliteRowsUpdated}</span>
+                    <span>跳过占用：{skippedLockedRolloutFiles.length}</span>
+                    {sessionRepairResult.backupDir ? <span title={sessionRepairResult.backupDir}>备份：{sessionRepairResult.backupDir}</span> : null}
+                    {sessionRepairResult.encryptedContentWarning ? (
+                      <strong>{sessionRepairResult.encryptedContentWarning}</strong>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+              <button className="ghostButton" onClick={repairHistoricalSessions} type="button" disabled={sessionRepairing}>
+                <RefreshCw size={15} className={sessionRepairing ? "spin" : ""} />
+                {sessionRepairing ? "修复中" : "立刻修复"}
               </button>
             </div>
           </div>

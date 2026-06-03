@@ -1,10 +1,10 @@
 use codex_manager_core::{
     Account, AppSettings, AuthState, BackupConfigPreview, CodexApplyResult, CodexConfigView,
-    CodexPathInfo, LaunchRequest, LoginAccount, LoginCredentials, LoginPayload,
-    RemoteKeyDecryptPayload, RemoteKeySearchPayload, SettingsStore, apply_account_to_codex,
-    check_for_update_with_url, clear_codex_manager_config, launch_codex as launch_codex_core,
-    login_new_api, read_codex_view, read_latest_backup_preview, resolve_codex_path,
-    restart_codex as restart_codex_core, restore_latest_backup,
+    CodexPathInfo, CodexPreferenceConfig, CodexPreferenceResult, LaunchRequest, LoginAccount,
+    LoginCredentials, LoginPayload, RemoteKeyDecryptPayload, RemoteKeySearchPayload, SettingsStore,
+    apply_account_to_codex, check_for_update_with_url, clear_codex_manager_config,
+    launch_codex as launch_codex_core, login_new_api, read_codex_view, read_latest_backup_preview,
+    resolve_codex_path, restart_codex as restart_codex_core, restore_latest_backup,
 };
 use serde::Serialize;
 use std::time::Duration;
@@ -136,6 +136,38 @@ pub fn save_settings(settings: AppSettings) -> CommandResult<SettingsPayload> {
         ),
         Err(error) => failed_payload("Settings save failed", error),
     }
+}
+
+#[tauri::command]
+pub fn read_codex_preferences() -> CommandResult<CodexPreferenceResult> {
+    match codex_manager_core::read_codex_preferences() {
+        Ok(payload) => ok("已读取 Codex 偏好设置", payload),
+        Err(error) => failed_payload("读取 Codex 偏好设置失败", error),
+    }
+}
+
+#[tauri::command]
+pub fn save_codex_preferences(
+    preferences: CodexPreferenceConfig,
+) -> CommandResult<CodexPreferenceResult> {
+    match codex_manager_core::save_codex_preferences(preferences) {
+        Ok(payload) => ok("已保存 Codex 偏好设置，重启 Codex 后生效", payload),
+        Err(error) => failed_payload("保存 Codex 偏好设置失败", error),
+    }
+}
+
+#[tauri::command]
+pub fn repair_historical_sessions() -> CommandResult<codex_manager_core::ProviderSyncResult> {
+    let sync = codex_manager_core::run_provider_sync();
+    ok(
+        &format!(
+            "历史会话修复完成：{} 个会话文件，{} 行索引，跳过 {} 个占用文件。",
+            sync.changed_session_files,
+            sync.sqlite_rows_updated,
+            sync.skipped_locked_rollout_files.len()
+        ),
+        sync,
+    )
 }
 
 #[tauri::command]
@@ -492,7 +524,9 @@ fn open_external_url(url: &str) -> anyhow::Result<()> {
     }
 }
 
-fn download_and_open_update(request: &InstallUpdateRequest) -> anyhow::Result<InstallUpdatePayload> {
+fn download_and_open_update(
+    request: &InstallUpdateRequest,
+) -> anyhow::Result<InstallUpdatePayload> {
     let asset_url = request.asset_url.trim();
     if asset_url.is_empty() {
         anyhow::bail!("没有可用的安装包下载地址");
@@ -567,7 +601,9 @@ fn file_name_has_version(file_name: &str, version: &str) -> bool {
 
 fn append_version_to_file_name(file_name: &str, version: &str) -> String {
     match file_name.rsplit_once('.') {
-        Some((stem, ext)) if !stem.is_empty() && !ext.is_empty() => format!("{stem}-{version}.{ext}"),
+        Some((stem, ext)) if !stem.is_empty() && !ext.is_empty() => {
+            format!("{stem}-{version}.{ext}")
+        }
         _ => format!("{file_name}-{version}"),
     }
 }
@@ -592,7 +628,8 @@ fn sanitize_file_name(value: &str) -> String {
     value
         .chars()
         .map(|ch| {
-            if ch.is_control() || matches!(ch, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*') {
+            if ch.is_control() || matches!(ch, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*')
+            {
                 '_'
             } else {
                 ch

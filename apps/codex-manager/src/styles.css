@@ -65,7 +65,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -99,7 +100,8 @@ button:disabled {
 }
 
 input,
-select {
+select,
+textarea {
   width: 100%;
   min-height: 40px;
   border: 1px solid var(--line-strong);
@@ -116,9 +118,21 @@ input::placeholder {
 }
 
 input:focus,
-select:focus {
+select:focus,
+textarea:focus {
   border-color: var(--accent-line);
   box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+textarea {
+  min-height: 96px;
+  padding: 10px 13px;
+  resize: vertical;
+  line-height: 1.55;
+}
+
+textarea::placeholder {
+  color: var(--text-dim);
 }
 
 select {
@@ -395,6 +409,35 @@ pre {
   border-color: rgba(248, 113, 113, 0.4);
   background: var(--danger-soft);
   color: var(--danger);
+}
+
+.appError {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  color: var(--text);
+  padding: 24px;
+}
+
+.appError section {
+  width: min(560px, 100%);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 24px;
+  display: grid;
+  gap: 14px;
+}
+
+.appError h1 {
+  font-size: 20px;
+}
+
+.appError p {
+  color: var(--danger);
+  word-break: break-word;
 }
 
 /* ---------- buttons (variants) ---------- */
@@ -946,6 +989,57 @@ pre {
   gap: 10px;
 }
 
+.preferenceRow {
+  align-items: start;
+}
+
+.preferenceGrid {
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) minmax(280px, 1fr);
+  gap: 12px;
+  max-width: 780px;
+}
+
+.preferenceActions {
+  align-items: flex-start;
+}
+
+.sessionRepairRow {
+  align-items: start;
+}
+
+.repairSummary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 720px;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.repairSummary span,
+.repairSummary strong {
+  min-height: 26px;
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--bg-soft);
+  padding: 0 8px;
+}
+
+.repairSummary span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.repairSummary strong {
+  color: #9a3412;
+  font-weight: 650;
+}
+
 .pathRow {
   align-items: start;
 }
@@ -1326,6 +1420,10 @@ pre {
   .settingActions {
     width: 100%;
     flex-wrap: wrap;
+  }
+
+  .preferenceGrid {
+    grid-template-columns: 1fr;
   }
 
   .pathInfo {

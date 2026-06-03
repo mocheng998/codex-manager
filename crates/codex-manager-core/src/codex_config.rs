@@ -4,6 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, bail};
 use serde::{Deserialize, Serialize};
+use toml_edit::{DocumentMut, Item, Table, value};
 
 use crate::paths;
 use crate::settings::{Account, clean_url, normalize_api_key};
@@ -59,6 +60,22 @@ pub struct BackupConfigPreview {
     pub auth_path: String,
     pub config_toml: String,
     pub auth_json: String,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CodexPreferenceConfig {
+    pub locale_override: String,
+    pub developer_instructions: String,
+}
+
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CodexPreferenceResult {
+    pub config_path: String,
+    pub backup_path: String,
+    pub locale_override: String,
+    pub developer_instructions: String,
 }
 
 pub fn apply_account_to_codex(account: &Account) -> anyhow::Result<CodexApplyResult> {
@@ -176,6 +193,36 @@ pub fn read_codex_view() -> anyhow::Result<CodexConfigView> {
         config_toml: read_optional(&config_path).contents,
         auth_json: read_optional(&auth_path).contents,
         backup_available: latest_backup_path().is_some(),
+    })
+}
+
+pub fn read_codex_preferences() -> anyhow::Result<CodexPreferenceResult> {
+    let config_path = paths::codex_config_file();
+    let config = read_optional(&config_path).contents;
+    let preferences = parse_codex_preferences(&config)?;
+    Ok(CodexPreferenceResult {
+        config_path: config_path.to_string_lossy().to_string(),
+        backup_path: String::new(),
+        locale_override: preferences.locale_override,
+        developer_instructions: preferences.developer_instructions,
+    })
+}
+
+pub fn save_codex_preferences(
+    preferences: CodexPreferenceConfig,
+) -> anyhow::Result<CodexPreferenceResult> {
+    let backup_path = create_backup("save-preferences", None)?;
+    let config_path = paths::codex_config_file();
+    let current_config = read_optional(&config_path).contents;
+    let next_config = build_preference_config(&current_config, &preferences)?;
+    atomic_write(&config_path, &next_config)
+        .with_context(|| format!("failed to write {}", config_path.display()))?;
+    let saved = parse_codex_preferences(&next_config)?;
+    Ok(CodexPreferenceResult {
+        config_path: config_path.to_string_lossy().to_string(),
+        backup_path: backup_path.to_string_lossy().to_string(),
+        locale_override: saved.locale_override,
+        developer_instructions: saved.developer_instructions,
     })
 }
 
@@ -303,6 +350,64 @@ fn escape_toml_string(value: &str) -> String {
     value.replace('\\', "\\\\").replace('"', "\\\"")
 }
 
+fn parse_codex_preferences(config: &str) -> anyhow::Result<CodexPreferenceConfig> {
+    if config.trim().is_empty() {
+        return Ok(CodexPreferenceConfig::default());
+    }
+    let document = config.parse::<DocumentMut>()?;
+    Ok(CodexPreferenceConfig {
+        locale_override: document
+            .get("desktop")
+            .and_then(Item::as_table_like)
+            .and_then(|table| table.get("localeOverride"))
+            .and_then(Item::as_str)
+            .unwrap_or_default()
+            .to_string(),
+        developer_instructions: document
+            .get("developer_instructions")
+            .and_then(Item::as_str)
+            .unwrap_or_default()
+            .to_string(),
+    })
+}
+
+fn build_preference_config(
+    current: &str,
+    preferences: &CodexPreferenceConfig,
+) -> anyhow::Result<String> {
+    let mut document = if current.trim().is_empty() {
+        DocumentMut::new()
+    } else {
+        current.parse::<DocumentMut>()?
+    };
+    let locale = preferences.locale_override.trim();
+    let developer_instructions = preferences.developer_instructions.trim();
+
+    if developer_instructions.is_empty() {
+        document.remove("developer_instructions");
+    } else {
+        document["developer_instructions"] = value(developer_instructions);
+    }
+
+    if !document.contains_key("desktop") || !document["desktop"].is_table_like() {
+        document["desktop"] = Item::Table(Table::new());
+    }
+    if locale.is_empty() {
+        if let Some(table) = document["desktop"].as_table_like_mut() {
+            table.remove("localeOverride");
+        }
+    } else {
+        document["desktop"]["localeOverride"] = value(locale);
+    }
+
+    let output = document.to_string();
+    Ok(if output.ends_with('\n') {
+        output
+    } else {
+        format!("{output}\n")
+    })
+}
+
 fn atomic_write(path: &Path, contents: &str) -> anyhow::Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
@@ -338,5 +443,43 @@ base_url = "https://old.test/v1"
         assert!(next.contains("model_provider = \"CodexManager\""));
         assert!(next.contains("base_url = \"https://new.test/v1\""));
         assert!(!next.contains("https://old.test"));
+    }
+
+    #[test]
+    fn build_preference_config_updates_desktop_and_instructions() {
+        let next = build_preference_config(
+            r#"model_provider = "openai"
+
+[desktop]
+ambient-suggestions-enabled = true
+"#,
+            &CodexPreferenceConfig {
+                locale_override: "zh-CN".to_string(),
+                developer_instructions: "请默认使用中文回答。".to_string(),
+            },
+        )
+        .unwrap();
+
+        assert!(next.contains("developer_instructions = \"请默认使用中文回答。\""));
+        assert!(next.contains("localeOverride = \"zh-CN\""));
+        assert!(next.contains("ambient-suggestions-enabled = true"));
+    }
+
+    #[test]
+    fn build_preference_config_removes_empty_values() {
+        let next = build_preference_config(
+            r#"developer_instructions = "old"
+
+[desktop]
+localeOverride = "zh-CN"
+ambient-suggestions-enabled = true
+"#,
+            &CodexPreferenceConfig::default(),
+        )
+        .unwrap();
+
+        assert!(!next.contains("developer_instructions"));
+        assert!(!next.contains("localeOverride"));
+        assert!(next.contains("ambient-suggestions-enabled = true"));
     }
 }
