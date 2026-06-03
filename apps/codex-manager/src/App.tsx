@@ -632,6 +632,7 @@ export function App() {
 
   async function saveCodexPreferences() {
     setCodexPreferenceSaving(true);
+    setNotice({ status: "ok", message: "正在保存设置，随后重启 Codex..." });
     try {
       const result = await run(() =>
         call<CodexPreferenceResult>("save_codex_preferences", {
@@ -644,8 +645,8 @@ export function App() {
         localeOverride: result.localeOverride || "",
         developerInstructions: result.developerInstructions || "",
       });
-      show(result);
       await readConfig();
+      await restartCodex(settings, "设置已保存，Codex 已重启");
     } finally {
       setCodexPreferenceSaving(false);
     }
@@ -1290,9 +1291,9 @@ export function App() {
                   >
                     默认中文回复
                   </button>
-                  <button className="primaryButton" onClick={saveCodexPreferences} type="button" disabled={codexPreferenceSaving}>
-                    <RefreshCw size={15} className={codexPreferenceSaving ? "spin" : ""} />
-                    {codexPreferenceSaving ? "保存中" : "保存"}
+                  <button className="primaryButton" onClick={saveCodexPreferences} type="button" disabled={codexPreferenceSaving || codexBusy}>
+                    <RefreshCw size={15} className={codexPreferenceSaving || codexLaunchState === "restarting" ? "spin" : ""} />
+                    重启codex生效
                   </button>
                 </div>
               </div>
