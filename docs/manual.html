@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="codex助手 使用说明：安装、添加 KEY、登录 NewAPI、切换 Codex 配置、启动增强和备份恢复。"
+      content="codex助手 0基础用户操作指南：下载安装、安装 Codex、本地模式、登录 NewAPI、同步 KEY 和重启 Codex。"
     />
     <title>使用说明 | codex助手</title>
     <link rel="icon" href="assets/app-icon.png" />
@@ -19,92 +19,129 @@
       </a>
       <nav aria-label="手册导航">
         <a href="index.html">首页</a>
+        <a href="#download">下载</a>
         <a href="#install">安装</a>
-        <a href="#keys">KEY</a>
-        <a href="#launch">启动</a>
-        <a href="#backup">备份</a>
+        <a href="#codex">Codex</a>
+        <a href="#local">本地模式</a>
+        <a href="#newapi">NewAPI</a>
       </nav>
     </header>
 
     <main class="manual-layout">
       <aside class="manual-toc" aria-label="手册目录">
         <strong>使用说明</strong>
-        <a href="#overview">适用场景</a>
-        <a href="#install">安装</a>
-        <a href="#keys">本地 KEY</a>
-        <a href="#newapi">NewAPI</a>
-        <a href="#launch">启动 Codex</a>
-        <a href="#backup">备份恢复</a>
+        <a href="#overview">操作指南</a>
+        <a href="#download">下载安装</a>
+        <a href="#install">选择路径</a>
+        <a href="#codex">安装 Codex</a>
+        <a href="#local">本地模式</a>
+        <a href="#newapi">登录 NewAPI</a>
+        <a href="#sync">同步 KEY</a>
+        <a href="#restart">重启 Codex</a>
       </aside>
 
       <article class="manual-content">
         <section id="overview" class="manual-hero">
           <p class="eyebrow">图文使用说明</p>
-          <h1>从添加第一个 KEY 到启动 Codex。</h1>
+          <h1>0基础用户操作指南。</h1>
           <p>
-            codex助手 适合需要频繁切换 Codex API Key、使用 NewAPI 中转服务、查看配置写入结果，
-            或希望在不修改 Codex 安装目录的前提下启用启动增强的用户。
+            按照下面步骤完成 codex助手 下载、安装、Codex 安装、本地模式配置、NewAPI 登录、
+            KEY 同步和重启 Codex。
           </p>
           <figure>
-            <img src="assets/dashboard-preview.png" alt="codex助手 管理界面预览" />
-            <figcaption>左侧是功能导航，右侧集中处理 KEY、Codex 启动、配置预览和恢复。</figcaption>
+            <img src="assets/tutorial/step-01.png" alt="下载安装 codex助手" />
+            <figcaption>先下载 codex助手 安装包。</figcaption>
+          </figure>
+        </section>
+
+        <section id="download" class="manual-section">
+          <h2>1. 下载并安装 codex助手</h2>
+          <p>下载完成后打开安装包，进入 codex助手 安装流程。</p>
+          <figure>
+            <img src="assets/tutorial/step-02.png" alt="打开 codex助手 安装包" />
+            <figcaption>下载后运行安装包。</figcaption>
+          </figure>
+          <p>有些 Windows 电脑会弹出保护程序，需要点击允许继续安装。</p>
+          <figure>
+            <img src="assets/tutorial/step-03.png" alt="Windows 保护程序允许安装" />
+            <figcaption>如果出现系统保护提示，选择允许或继续运行。</figcaption>
           </figure>
         </section>
 
         <section id="install" class="manual-section">
-          <h2>1. 安装与运行</h2>
-          <ol>
-            <li>下载对应系统的安装包。</li>
-            <li>Windows 使用 msi 或 exe 安装包，macOS 使用 app 或 dmg 安装包。</li>
-            <li>第一次打开后进入设置页，点击重新检测 Codex 位置。</li>
-          </ol>
-          <p>开发环境可以直接运行：</p>
-          <pre><code>cd apps/codex-manager
-npm install
-npm run dev</code></pre>
+          <h2>2. 选择安装路径并完成安装</h2>
+          <p>安装过程中可以选择 codex助手 的安装路径，然后继续安装。</p>
+          <figure>
+            <img src="assets/tutorial/step-04.png" alt="选择 codex助手 安装路径" />
+            <figcaption>选择安装路径后继续安装。</figcaption>
+          </figure>
+          <p>安装结束后点击完成，打开 codex助手。</p>
+          <figure>
+            <img src="assets/tutorial/step-05.png" alt="安装完成并打开 codex助手" />
+            <figcaption>安装完成后启动 codex助手。</figcaption>
+          </figure>
         </section>
 
-        <section id="keys" class="manual-section">
-          <h2>2. 添加免登录 KEY</h2>
+        <section id="codex" class="manual-section">
+          <h2>3. 未安装 Codex 的用户先安装 Codex</h2>
+          <p>如果电脑上没有安装过 Codex，进入设置页，点击安装 Codex，安装最新版本。</p>
+          <figure>
+            <img src="assets/tutorial/step-06.png" alt="设置页安装 Codex" />
+            <figcaption>设置 - 安装 Codex。</figcaption>
+          </figure>
+        </section>
+
+        <section id="local" class="manual-section">
+          <h2>4. 使用本地模式配置自己的 KEY</h2>
+          <p>本地模式支持填写自己的 API KEY 和 Base URL。</p>
           <ol>
-            <li>进入免登录 KEY 配置页。</li>
+            <li>进入本地模式。</li>
             <li>填写名称、Base URL 和 API KEY。</li>
-            <li>点击保存并切换，codex助手 会把它设为当前账号。</li>
+            <li>保存后即可作为本地 KEY 统一管理和切换。</li>
           </ol>
-          <div class="manual-note">
-            Base URL 通常以 /v1 结尾。切换账号后，应用会写入 Codex 的 config.toml 和 auth.json。
-          </div>
+          <figure>
+            <img src="assets/tutorial/step-07.png" alt="本地模式填写 API KEY 和 Base URL" />
+            <figcaption>如何获取 API KEY 和 URL 请参考对应服务商教程。</figcaption>
+          </figure>
         </section>
 
         <section id="newapi" class="manual-section">
-          <h2>3. 登录 NewAPI 并同步远程 KEY</h2>
+          <h2>5. 登录 NewAPI 类型的中转站</h2>
+          <p>codex助手 支持登录 NewAPI 类型的中转站，获取已经在中转站里设置好的 KEY。</p>
           <ol>
-            <li>进入登录配置页，填写兼容 NewAPI 的服务地址、账号和密码。</li>
-            <li>登录成功后查询远程 KEY，可以按名称搜索。</li>
-            <li>选择同步，或直接点击使用，把远程 KEY 解密后保存到本地账号列表。</li>
+            <li>进入登录配置。</li>
+            <li>填写服务地址、账号和密码。</li>
+            <li>登录成功后查看可用 KEY。</li>
           </ol>
-          <p>当前 V1 主要面向兼容 NewAPI 的远程 KEY 管理流程。</p>
+          <figure>
+            <img src="assets/tutorial/step-08.png" alt="登录 NewAPI 中转站" />
+            <figcaption>登录 NewAPI 后获取远程 KEY。</figcaption>
+          </figure>
         </section>
 
-        <section id="launch" class="manual-section">
-          <h2>4. 启动或重启 Codex</h2>
+        <section id="sync" class="manual-section">
+          <h2>6. 使用远程 KEY 并同步到本地模式</h2>
+          <p>点击使用后，会把远程 KEY 同步到本地模式里，后续统一进行 KEY 管理。</p>
           <ol>
-            <li>确认当前账号已经切换成功。</li>
-            <li>进入设置页，点击启动 Codex 或重启 Codex。</li>
-            <li>如果开启插件解锁，codex助手 会保存设置并自动重启 Codex。</li>
+            <li>在登录账号下选择需要使用的 KEY。</li>
+            <li>点击使用。</li>
+            <li>codex助手 会同步到本地模式并切换当前 KEY。</li>
           </ol>
-          <p>启动时会动态选择空闲调试端口，并过滤冲突参数，减少重启白屏风险。</p>
+          <figure>
+            <img src="assets/tutorial/step-09.png" alt="远程 KEY 同步到本地模式" />
+            <figcaption>远程 KEY 会同步到本地模式里统一管理。</figcaption>
+          </figure>
         </section>
 
-        <section id="backup" class="manual-section">
-          <h2>5. 查看配置与恢复备份</h2>
-          <ol>
-            <li>在设置页点击查看配置，可以预览当前 config.toml 和 auth.json。</li>
-            <li>点击恢复配置，可以查看最近一次备份内容。</li>
-            <li>确认后恢复，Codex 配置会回到备份状态。</li>
-          </ol>
+        <section id="restart" class="manual-section">
+          <h2>7. 重启 Codex 让配置生效</h2>
+          <p>点击使用 KEY 后，重启 Codex，就可以完成 Codex 的 API 登录模式配置。</p>
+          <figure>
+            <img src="assets/tutorial/step-10.png" alt="重启 Codex 完成 API 登录模式" />
+            <figcaption>重启 Codex 后使用当前 KEY 配置。</figcaption>
+          </figure>
           <div class="manual-note">
-            每次应用账号、恢复配置或清除 API 模式前，核心逻辑都会创建备份。
+            如果已经打开 Codex，建议在 codex助手 的设置页点击重启 Codex，让最新 KEY 配置立即生效。
           </div>
         </section>
       </article>
