@@ -1099,15 +1099,15 @@ export function App() {
                     onClick={installLatestUpdate}
                     type="button"
                     disabled={updateInstalling || !updateInfo.assetUrl}
-                    title={updateInfo.assetUrl ? "下载并打开最新安装包" : "当前版本没有安装包下载地址"}
+                    title={updateInfo.assetUrl ? "下载新版本安装包" : "当前版本没有安装包下载地址"}
                   >
                     {updateInstalling ? (
                       <>
-                        <RefreshCw size={14} className="spin" /> 更新中
+                        <RefreshCw size={14} className="spin" /> 下载中
                       </>
                     ) : (
                       <>
-                        <Download size={14} /> 立即更新
+                        <Download size={14} /> 下载新版本
                       </>
                     )}
                   </button>

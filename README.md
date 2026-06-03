@@ -30,6 +30,8 @@ codex-manager/
 ## Installer
 
 - Windows MSI uses the WiX install directory dialog, so users can choose the install location from the setup wizard.
+- Windows MSI uses a pinned upgrade code and blocks downgrades, so installing a newer package upgrades and removes the previous version.
+- Windows MSI uses a Chinese WiX locale file under `apps/codex-manager/src-tauri/wix/zh-CN.wxl`.
 - The MSI upgrade code is pinned in `tauri.conf.json` to keep upgrades tied to the same installed app.
 
 ## Development
@@ -46,7 +48,7 @@ cargo check --workspace
 
 ## Release
 
-V1 package version is `1.0.20`.
+V1 package version is `1.0.21`.
 
 ```powershell
 cd apps/codex-manager

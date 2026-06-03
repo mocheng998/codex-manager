@@ -1,0 +1,8 @@
+<WixLocalization Culture="zh-cn" xmlns="http://schemas.microsoft.com/wix/2006/localization">
+  <String Id="TauriLanguage">2052</String>
+  <String Id="TauriCodepage">936</String>
+  <String Id="LaunchApp">安装完成后启动 Codex Manager</String>
+  <String Id="DowngradeErrorMessage">已安装更新版本的 Codex Manager，请先卸载后再安装旧版本。</String>
+  <String Id="PathEnvVarFeature">将 Codex Manager 的安装目录添加到系统 PATH 环境变量，方便从任意位置启动。</String>
+  <String Id="InstallAppFeature">安装 Codex Manager，并在更新时自动移除旧版本文件。</String>
+</WixLocalization>
