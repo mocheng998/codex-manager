@@ -1158,13 +1158,16 @@ export function App() {
           <h1>设置</h1>
         </header>
 
+        {/* 版本更新 */}
         <section className="settingsGroup">
           <h2 className="groupTitle">版本更新</h2>
           <div className="groupCard">
             <div className="settingRow versionRow">
               <div className="settingLabel">
                 <h3>codex助手</h3>
-                <p>{updateStatusText()}</p>
+                {updateInfo?.updateAvailable ? (
+                  <p className="updateHint">发现新版本 {updateInfo.latestVersion ? `v${trimVersionPrefix(updateInfo.latestVersion)}` : ""}</p>
+                ) : null}
               </div>
               <div className="versionInfo">
                 <span className="versionBadge">本地版本 v{appVersion || updateInfo?.currentVersion || "-"}</span>
@@ -1205,6 +1208,7 @@ export function App() {
           </div>
         </section>
 
+        {/* Codex 运行 */}
         <section className="settingsGroup">
           <h2 className="groupTitle">Codex 运行</h2>
           <div className="groupCard">
@@ -1241,23 +1245,17 @@ export function App() {
             <div className="settingRow pathRow">
               <div className="settingLabel">
                 <h3>Codex 位置</h3>
-              </div>
-              <div className="pathInfo">
-                <code title={codexPath?.executablePath || ""}>
+                <p title={codexPath?.executablePath || codexPath?.message || ""}>
                   {codexPathChecking
                     ? "检测中..."
-                    : codexPath?.executablePath || codexPath?.message || "未检测到"}
-                </code>
-                {codexPath?.status === "ok" ? (
-                  <span className="pathTag">
-                    {codexPath.source || "auto"}
-                    {codexPath.version ? ` · ${codexPath.version}` : ""}
-                  </span>
-                ) : null}
-                <button className="ghostButton" onClick={detectCodexPath} type="button" disabled={codexPathChecking}>
-                  <RefreshCw size={14} className={codexPathChecking ? "spin" : ""} /> {codexPathChecking ? "检测中" : "重新检测"}
-                </button>
+                    : codexPath?.status === "ok"
+                      ? `${codexPath.source || "auto"}${codexPath.version ? ` · ${codexPath.version}` : ""}`
+                      : codexPath?.message || "未检测到"}
+                </p>
               </div>
+              <button className="ghostButton" onClick={detectCodexPath} type="button" disabled={codexPathChecking}>
+                <RefreshCw size={14} className={codexPathChecking ? "spin" : ""} /> {codexPathChecking ? "检测中" : "重新检测"}
+              </button>
             </div>
 
             <div className="settingRow">
@@ -1271,67 +1269,69 @@ export function App() {
           </div>
         </section>
 
+        {/* 增强 */}
         <section className="settingsGroup">
           <h2 className="groupTitle">增强</h2>
           <div className="groupCard">
+            {/* 语言和默认指令 — 全宽独立区块 */}
             <div className="settingRow preferenceRow">
-              <div className="settingLabel">
-                <h3>Codex 语言和默认指令</h3>
-                <p>写入 Codex 的 config.toml，语言影响应用界面，开发者指令影响默认回复习惯。</p>
-                <div className="preferenceGrid">
-                  <label>
-                    <span>界面语言</span>
-                    <select
-                      value={codexPreferenceForm.localeOverride}
-                      onChange={(event) => {
-                        const localeOverride = event.currentTarget.value;
-                        setCodexPreferenceForm((current) => ({
-                          ...current,
-                          localeOverride,
-                        }));
-                      }}
-                    >
-                      <option value="">自动检测</option>
-                      <option value="zh-CN">中文（中国）</option>
-                      <option value="en-US">English (US)</option>
-                    </select>
-                  </label>
-                  <label>
-                    <span>developer_instructions</span>
-                    <textarea
-                      value={codexPreferenceForm.developerInstructions}
-                      onChange={(event) => {
-                        const developerInstructions = event.currentTarget.value;
-                        setCodexPreferenceForm((current) => ({
-                          ...current,
-                          developerInstructions,
-                        }));
-                      }}
-                      placeholder="例如：请始终使用简体中文回答，除非我明确要求使用其他语言。"
-                    />
-                  </label>
+              <div className="preferenceHeader">
+                <h3>语言和默认指令</h3>
+                <div className="settingActions">
+                  <button
+                    className="ghostButton"
+                    onClick={() =>
+                      setCodexPreferenceForm((current) => ({
+                        ...current,
+                        developerInstructions: defaultChineseInstructions,
+                      }))
+                    }
+                    type="button"
+                  >
+                    默认中文回复
+                  </button>
+                  <button className="primaryButton" onClick={saveCodexPreferences} type="button" disabled={codexPreferenceSaving}>
+                    <RefreshCw size={15} className={codexPreferenceSaving ? "spin" : ""} />
+                    {codexPreferenceSaving ? "保存中" : "保存"}
+                  </button>
                 </div>
-                {codexPreferences?.configPath ? <p>配置文件：{codexPreferences.configPath}</p> : null}
               </div>
-              <div className="settingActions preferenceActions">
-                <button
-                  className="ghostButton"
-                  onClick={() =>
-                    setCodexPreferenceForm((current) => ({
-                      ...current,
-                      developerInstructions: defaultChineseInstructions,
-                    }))
-                  }
-                  type="button"
-                >
-                  默认中文回复
-                </button>
-                <button className="primaryButton" onClick={saveCodexPreferences} type="button" disabled={codexPreferenceSaving}>
-                  <RefreshCw size={15} className={codexPreferenceSaving ? "spin" : ""} />
-                  {codexPreferenceSaving ? "保存中" : "保存"}
-                </button>
+              <div className="preferenceGrid">
+                <label>
+                  <span>界面语言</span>
+                  <select
+                    value={codexPreferenceForm.localeOverride}
+                    onChange={(event) => {
+                      const localeOverride = event.currentTarget.value;
+                      setCodexPreferenceForm((current) => ({
+                        ...current,
+                        localeOverride,
+                      }));
+                    }}
+                  >
+                    <option value="">自动检测</option>
+                    <option value="zh-CN">中文（中国）</option>
+                    <option value="en-US">English (US)</option>
+                  </select>
+                </label>
+                <label>
+                  <span>默认指令</span>
+                  <textarea
+                    value={codexPreferenceForm.developerInstructions}
+                    onChange={(event) => {
+                      const developerInstructions = event.currentTarget.value;
+                      setCodexPreferenceForm((current) => ({
+                        ...current,
+                        developerInstructions,
+                      }));
+                    }}
+                    placeholder="例如：请始终使用简体中文回答，除非我明确要求使用其他语言。"
+                  />
+                </label>
               </div>
             </div>
+
+            {/* 解锁插件 */}
             <div className="settingRow">
               <div className="settingLabel">
                 <h3>解锁插件</h3>
@@ -1348,10 +1348,12 @@ export function App() {
                 <span />
               </button>
             </div>
+
+            {/* 修复历史会话 */}
             <div className="settingRow sessionRepairRow">
               <div className="settingLabel">
                 <h3>修复历史会话</h3>
-                <p>同步本地 rollout 与 state_5.sqlite 的 provider 标记，切换账号或 API 模式后让旧会话重新可见。</p>
+                <p>切换账号或 API 模式后让旧会话重新可见。</p>
                 {sessionRepairResult ? (
                   <div className="repairSummary">
                     <span>目标：{sessionRepairResult.targetProvider || "openai"}</span>
@@ -1372,24 +1374,23 @@ export function App() {
             </div>
           </div>
         </section>
+
+        {/* 配置 — 合并为一行 */}
         <section className="settingsGroup">
           <h2 className="groupTitle">配置</h2>
           <div className="groupCard">
             <div className="settingRow">
               <div className="settingLabel">
-                <h3>查看配置</h3>
+                <h3>配置文件</h3>
               </div>
-              <button className="ghostButton" onClick={openConfigModal} type="button">
-                <FileText size={15} /> 查看
-              </button>
-            </div>
-            <div className="settingRow">
-              <div className="settingLabel">
-                <h3>恢复配置</h3>
+              <div className="settingActions">
+                <button className="ghostButton" onClick={openConfigModal} type="button">
+                  <FileText size={15} /> 查看
+                </button>
+                <button className="ghostButton" onClick={openRestorePreview} type="button" disabled={!configView?.backupAvailable}>
+                  <RotateCcw size={15} /> 恢复
+                </button>
               </div>
-              <button className="ghostButton" onClick={openRestorePreview} type="button" disabled={!configView?.backupAvailable}>
-                <RotateCcw size={15} /> 恢复
-              </button>
             </div>
           </div>
         </section>
