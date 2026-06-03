@@ -681,7 +681,7 @@ export function App() {
           <div className="logoMark">
             <KeyRound size={20} />
           </div>
-          <span className="brandName">Codex Manager</span>
+          <span className="brandName">codex助手</span>
         </div>
         <nav className="nav">
           {navItems.map((item) => (
@@ -1081,7 +1081,7 @@ export function App() {
           <div className="groupCard">
             <div className="settingRow versionRow">
               <div className="settingLabel">
-                <h3>Codex Manager</h3>
+                <h3>codex助手</h3>
                 <p>{updateStatusText()}</p>
               </div>
               <div className="versionInfo">

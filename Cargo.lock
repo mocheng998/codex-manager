@@ -329,7 +329,7 @@ dependencies = [
 
 [[package]]
 name = "codex-manager"
-version = "1.0.22"
+version = "1.0.23"
 dependencies = [
  "anyhow",
  "codex-manager-core",
@@ -343,7 +343,7 @@ dependencies = [
 
 [[package]]
 name = "codex-manager-core"
-version = "1.0.22"
+version = "1.0.23"
 dependencies = [
  "anyhow",
  "directories",
@@ -360,7 +360,7 @@ dependencies = [
 
 [[package]]
 name = "codex-manager-launcher"
-version = "1.0.22"
+version = "1.0.23"
 dependencies = [
  "anyhow",
  "codex-manager-core",

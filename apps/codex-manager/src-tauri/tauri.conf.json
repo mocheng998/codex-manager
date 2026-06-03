@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Codex Manager",
-  "version": "1.0.22",
+  "version": "1.0.23",
   "identifier": "dev.codexmanager.desktop",
   "build": {
     "beforeDevCommand": "npm run vite:dev",
@@ -14,7 +14,7 @@
       {
         "create": true,
         "label": "main",
-        "title": "Codex Manager",
+        "title": "codex助手",
         "width": 1120,
         "height": 760,
         "minWidth": 940,
