@@ -1,10 +1,10 @@
 # Codex Manager
 
 <p align="center">
-  <a href="https://downloads.yuciyuan.top/codex-manager/latest/codex-manager-windows-latest.msi">
+  <a href="https://codex.xueaiclub.top">
     <img alt="官网下载" src="https://img.shields.io/badge/%E5%AE%98%E7%BD%91-%E4%B8%8B%E8%BD%BD%E5%9C%B0%E5%9D%80-blue?logo=windows&logoColor=white" />
   </a>
-  <a href="https://codex-manager-docs.pages.dev/manual.html">
+  <a href="https://codex.xueaiclub.top/manual">
     <img alt="新手帮助" src="https://img.shields.io/badge/%E6%96%B0%E6%89%8B-%E5%B8%AE%E5%8A%A9-orange?logo=readthedocs&logoColor=white" />
   </a>
   <a href="./resources/wechat_group.png">
