@@ -17,16 +17,6 @@
 
 Codex Manager 是一个基于 Rust + Tauri 的 Codex 桌面管理器，用来集中管理 Codex API Key、NewAPI 账号、配置备份和启动增强能力。
 
-## 项目结构
-
-```text
-codex-manager/
-  crates/codex-manager-core/      共享 Rust 核心逻辑
-  apps/codex-manager/             Tauri + React 管理器
-  apps/codex-manager-launcher/    静默启动器
-  scripts/windows/                Windows 辅助脚本
-```
-
 ## 数据位置
 
 - 管理器设置：平台配置目录下的 `CodexManager/config.json`
