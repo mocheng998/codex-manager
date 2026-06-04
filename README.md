@@ -1,5 +1,14 @@
 # Codex Manager
 
+<p align="center">
+  <a href="./resources/wechat_group.png">
+    <img alt="微信交流群" src="https://img.shields.io/badge/%E5%BE%AE%E4%BF%A1-%E4%BA%A4%E6%B5%81%E7%BE%A4-green?logo=wechat&logoColor=white" />
+  </a>
+  <a href="./resources/wechat_personal.png">
+    <img alt="个人微信" src="https://img.shields.io/badge/%E4%B8%AA%E4%BA%BA%E5%BE%AE%E4%BF%A1-%E6%B7%BB%E5%8A%A0%E5%A5%BD%E5%8F%8B-07C160?logo=wechat&logoColor=white" />
+  </a>
+</p>
+
 Codex Manager is a Rust + Tauri rewrite of the original `codex-api-keys-tweak` idea.
 
 The architecture follows the CodexPlusPlus route:
@@ -56,3 +65,8 @@ npm run build:windows
 ```
 
 See [docs/API.md](docs/API.md) for IPC and NewAPI details, and [docs/PACKAGING.md](docs/PACKAGING.md) for Windows/macOS packaging.
+
+## 🙏 致谢
+
+- 感谢 [Linux.do](https://linux.do/) 社区提供的反馈、测试和传播支持。
+- 感谢 [Wangnov/codex-app-mirror](https://github.com/Wangnov/codex-app-mirror) 佬友提供的安装方式。
