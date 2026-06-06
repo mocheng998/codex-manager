@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Windows 解决 Codex 的 Computer Use 插件无法使用：排查 openai-bundled 插件源、缓存目录、Chrome 插件和 computer-use 插件安装状态。"
+    />
+    <title>windows 解决 codex 的 computer use 插件无法使用 | codex实战指南</title>
+    <link rel="icon" href="assets/app-icon.png" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="guide-page">
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="返回 codex助手 首页">
+        <img src="assets/app-icon.png" alt="" />
+        <span>codex助手</span>
+      </a>
+      <nav aria-label="页面导航">
+        <a href="index.html">首页</a>
+        <a class="nav-active" href="guide.html">codex实战指南</a>
+        <a href="index.html#features">功能</a>
+        <a href="index.html#workflow">流程</a>
+        <a href="index.html#security">安全</a>
+        <a href="index.html#faq">FAQ</a>
+        <a href="manual.html">使用说明</a>
+      </nav>
+    </header>
+
+    <main class="guide-layout">
+      <aside class="guide-sidebar" aria-label="实战指南目录">
+        <div class="guide-search" aria-label="搜索">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              d="M10.8 4a6.8 6.8 0 0 1 5.38 10.95l3.44 3.43a.88.88 0 0 1-1.24 1.24l-3.43-3.44A6.8 6.8 0 1 1 10.8 4Zm0 1.75a5.05 5.05 0 1 0 0 10.1 5.05 5.05 0 0 0 0-10.1Z"
+            />
+          </svg>
+          <span>搜索</span>
+        </div>
+        <nav class="guide-category-list" aria-label="文章分类">
+          <span class="guide-category">
+            <span>codex助手使用指南</span>
+          </span>
+          <a class="guide-article" href="guide.html#overview">codex助手使用指南</a>
+          <span class="guide-category">
+            <span>codex使用常见问题</span>
+          </span>
+          <a class="guide-article active" href="#overview">windows 解决 codex 的 computer use 插件无法使用</a>
+          <span class="guide-category">
+            <span>codex实践操作</span>
+          </span>
+        </nav>
+      </aside>
+
+      <article id="article" class="guide-article-content">
+        <div class="guide-breadcrumb">
+          <a href="index.html">首页</a>
+          <span>/</span>
+          <a href="guide.html">codex实战指南</a>
+          <span>/</span>
+          <span>windows 解决 codex 的 computer use 插件无法使用</span>
+        </div>
+
+        <section id="overview" class="guide-hero-section">
+          <p class="eyebrow">codex使用常见问题</p>
+          <h1>windows 解决 codex 的 computer use 插件无法使用</h1>
+          <div class="guide-callout">
+            <strong>快捷修复方式</strong>
+            <span>在 Codex 对话中对他说：</span>
+            <pre><code>参考 https://codex.xueaiclub.top/manual 帮我根据这篇文章修复codex</code></pre>
+          </div>
+          <p>按下面步骤修复。命令在 PowerShell 中执行，路径按自己电脑实际情况替换。</p>
+          <div class="manual-note">
+            如果直接注册 bundled 插件源后安装报 <code>os error 6000</code>，不要硬改 WindowsApps 权限，复制一份镜像到用户目录再注册。
+          </div>
+        </section>
+
+        <section id="backup" class="guide-section">
+          <h2>1. 先备份</h2>
+          <pre><code>$backup = "$HOME\.codex\backups\plugin-repair-$(Get-Date -Format yyyyMMdd-HHmmss)"
+New-Item -ItemType Directory -Force $backup | Out-Null
+Copy-Item "$HOME\.codex\config.toml" $backup -Force -ErrorAction SilentlyContinue
+Copy-Item "$HOME\.codex\codex-global-state.json" $backup -Force -ErrorAction SilentlyContinue</code></pre>
+        </section>
+
+        <section id="find-source" class="guide-section">
+          <h2>2. 找 Codex 桌面版 bundled 插件源</h2>
+          <pre><code>Get-Process Codex -ErrorAction SilentlyContinue | Select-Object Path</code></pre>
+          <p>然后按实际路径找到：</p>
+          <pre><code>...\Codex...\app\resources\plugins\openai-bundled</code></pre>
+        </section>
+
+        <section id="copy-source" class="guide-section">
+          <h2>3. 复制一份未加密镜像到用户目录</h2>
+          <p>示例：把 <code>$src</code> 改成你本机实际路径。</p>
+          <pre><code>$src = "D:\WindowsApps\OpenAI.Codex_版本号\app\resources\plugins\openai-bundled"
+$dst = "$HOME\.codex\plugins\sources\openai-bundled-fixed"
+
+Remove-Item $dst -Recurse -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Force $dst | Out-Null
+
+Get-ChildItem $src -Recurse -Directory | ForEach-Object {
+  $relative = $_.FullName.Substring($src.Length).TrimStart('\')
+  New-Item -ItemType Directory -Force (Join-Path $dst $relative) | Out-Null
+}
+
+Get-ChildItem $src -Recurse -File | ForEach-Object {
+  $relative = $_.FullName.Substring($src.Length).TrimStart('\')
+  $target = Join-Path $dst $relative
+  New-Item -ItemType Directory -Force (Split-Path $target) | Out-Null
+  [IO.File]::WriteAllBytes($target, [IO.File]::ReadAllBytes($_.FullName))
+}</code></pre>
+        </section>
+
+        <section id="install" class="guide-section">
+          <h2>4. 注册镜像源并安装插件</h2>
+          <pre><code>codex plugin marketplace remove openai-bundled
+codex plugin marketplace add $dst
+codex plugin add chrome@openai-bundled
+codex plugin add computer-use@openai-bundled</code></pre>
+        </section>
+
+        <section id="verify" class="guide-section">
+          <h2>5. 验证</h2>
+          <pre><code>codex plugin list --marketplace openai-bundled</code></pre>
+          <p>应该看到：</p>
+          <pre><code>chrome@openai-bundled installed, enabled
+computer-use@openai-bundled installed, enabled</code></pre>
+          <p>最后重启 Codex。</p>
+        </section>
+
+        <section id="skill" class="guide-section">
+          <h2>6. 也可以使用 skill 修复</h2>
+          <pre><code>https://github.com/chen0416ccc-cpu/codex-windows-fast-patch-skill</code></pre>
+          <pre><code>使用 codex-windows-fast-patch 这个 skill，检查并修复这台 Windows 机器上的 Codex Desktop Fast Mode、插件市场和 Computer Use 等可用性问题。</code></pre>
+        </section>
+      </article>
+
+      <aside class="guide-outline" aria-label="当前文章目录">
+        <strong>当前文章</strong>
+        <a href="#overview">修复说明</a>
+        <a href="#backup">先备份</a>
+        <a href="#find-source">找到插件源</a>
+        <a href="#copy-source">复制镜像</a>
+        <a href="#install">注册安装</a>
+        <a href="#verify">验证</a>
+        <a href="#skill">使用 skill 修复</a>
+      </aside>
+    </main>
+
+    <footer class="site-footer">
+      <span>codex助手</span>
+      <a href="guide.html">返回指南</a>
+    </footer>
+  </body>
+</html>

@@ -5,46 +5,66 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="codex助手 0基础用户操作指南：下载安装、安装 Codex、本地模式、登录 NewAPI、同步 KEY 和重启 Codex。"
+      content="codex助手实战指南：按目录阅读下载安装、安装 Codex、本地模式、登录 NewAPI、同步 KEY 和重启 Codex。"
     />
-    <title>使用说明 | codex助手</title>
+    <title>codex实战指南 | codex助手</title>
     <link rel="icon" href="assets/app-icon.png" />
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body class="manual-page">
+  <body class="guide-page">
     <header class="site-header">
       <a class="brand" href="index.html" aria-label="返回 codex助手 首页">
         <img src="assets/app-icon.png" alt="" />
         <span>codex助手</span>
       </a>
-      <nav aria-label="手册导航">
-        <a class="nav-active" href="index.html">首页</a>
-        <a href="guide.html">codex实战指南</a>
-        <a href="#download">下载</a>
-        <a href="#install">安装</a>
-        <a href="#codex">Codex</a>
-        <a href="#local">本地模式</a>
-        <a href="#newapi">NewAPI</a>
+      <nav aria-label="页面导航">
+        <a href="index.html">首页</a>
+        <a class="nav-active" href="guide.html">codex实战指南</a>
+        <a href="index.html#features">功能</a>
+        <a href="index.html#workflow">流程</a>
+        <a href="index.html#security">安全</a>
+        <a href="index.html#faq">FAQ</a>
+        <a href="manual.html">使用说明</a>
       </nav>
     </header>
 
-    <main class="manual-layout">
-      <aside class="manual-toc" aria-label="手册目录">
-        <strong>使用说明</strong>
-        <a href="#overview">操作指南</a>
-        <a href="#download">下载安装</a>
-        <a href="#install">选择路径</a>
-        <a href="#codex">安装 Codex</a>
-        <a href="#local">本地模式</a>
-        <a href="#newapi">登录 NewAPI</a>
-        <a href="#sync">同步 KEY</a>
-        <a href="#restart">重启 Codex</a>
+    <main class="guide-layout">
+      <aside class="guide-sidebar" aria-label="实战指南目录">
+        <div class="guide-search" aria-label="搜索">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              d="M10.8 4a6.8 6.8 0 0 1 5.38 10.95l3.44 3.43a.88.88 0 0 1-1.24 1.24l-3.43-3.44A6.8 6.8 0 1 1 10.8 4Zm0 1.75a5.05 5.05 0 1 0 0 10.1 5.05 5.05 0 0 0 0-10.1Z"
+            />
+          </svg>
+          <span>搜索</span>
+        </div>
+        <nav class="guide-category-list" aria-label="文章分类">
+          <span class="guide-category">
+            <span>codex助手使用指南</span>
+          </span>
+          <a class="guide-article active" href="#overview">codex助手使用指南</a>
+          <span class="guide-category">
+            <span>codex使用常见问题</span>
+          </span>
+          <a class="guide-article" href="guide-computer-use-windows.html">windows 解决 codex 的 computer use 插件无法使用</a>
+          <span class="guide-category">
+            <span>codex实践操作</span>
+          </span>
+        </nav>
       </aside>
 
-      <article class="manual-content">
-        <section id="overview" class="manual-hero">
+      <article id="article" class="guide-article-content">
+        <div class="guide-breadcrumb">
+          <a href="index.html">首页</a>
+          <span>/</span>
+          <a href="guide.html">codex实战指南</a>
+          <span>/</span>
+          <span>codex助手使用指南</span>
+        </div>
+
+        <section id="overview" class="guide-hero-section">
           <p class="eyebrow">图文使用说明</p>
-          <h1>0基础用户操作指南。</h1>
+          <h1>codex助手使用指南</h1>
           <p>
             按照下面步骤完成 codex助手 下载、安装、Codex 安装、本地模式配置、NewAPI 登录、
             KEY 同步和重启 Codex。
@@ -55,7 +75,7 @@
           </figure>
         </section>
 
-        <section id="download" class="manual-section">
+        <section id="download" class="guide-section">
           <h2>1. 下载并安装 codex助手</h2>
           <p>下载完成后打开安装包，进入 codex助手 安装流程。</p>
           <figure>
@@ -69,7 +89,7 @@
           </figure>
         </section>
 
-        <section id="install" class="manual-section">
+        <section id="install" class="guide-section">
           <h2>2. 选择安装路径并完成安装</h2>
           <p>安装过程中可以选择 codex助手 的安装路径，然后继续安装。</p>
           <figure>
@@ -83,7 +103,7 @@
           </figure>
         </section>
 
-        <section id="codex" class="manual-section">
+        <section id="codex" class="guide-section">
           <h2>3. 未安装 Codex 的用户先安装 Codex</h2>
           <p>如果电脑上没有安装过 Codex，进入设置页，点击安装 Codex，安装最新版本。</p>
           <figure>
@@ -92,7 +112,7 @@
           </figure>
         </section>
 
-        <section id="local" class="manual-section">
+        <section id="local" class="guide-section">
           <h2>4. 使用本地模式配置自己的 KEY</h2>
           <p>本地模式支持填写自己的 API KEY 和 Base URL。</p>
           <ol>
@@ -106,7 +126,7 @@
           </figure>
         </section>
 
-        <section id="newapi" class="manual-section">
+        <section id="newapi" class="guide-section">
           <h2>5. 登录 NewAPI 类型的中转站</h2>
           <p>codex助手 支持登录 NewAPI 类型的中转站，获取已经在中转站里设置好的 KEY。</p>
           <ol>
@@ -120,12 +140,12 @@
           </figure>
         </section>
 
-        <section id="sync" class="manual-section">
+        <section id="sync" class="guide-section">
           <h2>6. 使用远程 KEY 并同步到本地模式</h2>
-          <p>点击使用后，会把远程 KEY 同步到本地模式里，后续统一进行 KEY 管理。</p>
+          <p>点击同步并使用后，会把远程 KEY 同步到本地模式里，后续统一进行 KEY 管理。</p>
           <ol>
             <li>在登录账号下选择需要使用的 KEY。</li>
-            <li>点击使用。</li>
+            <li>点击同步并使用。</li>
             <li>codex助手 会同步到本地模式并切换当前 KEY。</li>
           </ol>
           <figure>
@@ -134,7 +154,7 @@
           </figure>
         </section>
 
-        <section id="restart" class="manual-section">
+        <section id="restart" class="guide-section">
           <h2>7. 重启 Codex 让配置生效</h2>
           <p>点击使用 KEY 后，重启 Codex，就可以完成 Codex 的 API 登录模式配置。</p>
           <figure>
@@ -146,6 +166,18 @@
           </div>
         </section>
       </article>
+
+      <aside class="guide-outline" aria-label="当前文章目录">
+        <strong>当前文章</strong>
+        <a href="#overview">codex助手使用指南</a>
+        <a href="#download">下载并安装</a>
+        <a href="#install">选择安装路径</a>
+        <a href="#codex">安装 Codex</a>
+        <a href="#local">本地模式配置</a>
+        <a href="#newapi">登录 NewAPI</a>
+        <a href="#sync">同步 KEY</a>
+        <a href="#restart">重启 Codex</a>
+      </aside>
     </main>
 
     <footer class="site-footer">
