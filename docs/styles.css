@@ -627,6 +627,13 @@ pre code {
   font-size: 14px;
 }
 
+.warning-note {
+  border-color: rgb(209 67 67 / 34%);
+  color: var(--red);
+  background: rgb(209 67 67 / 8%);
+  font-weight: 750;
+}
+
 .guide-callout {
   display: grid;
   gap: 10px;
