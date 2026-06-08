@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="codex界面设置中文教程：进入 Settings，在 General 里找到 Language，选择中文后重启 Codex。"
+      content="windows安装教程：MSIX 双击安装、PowerShell Add-AppxPackage 安装、改 zip 解压运行 Codex.exe。"
     />
-    <title>codex界面设置中文 教程 | codex实战指南</title>
+    <title>windows安装教程 | codex实战指南</title>
     <link rel="icon" href="assets/app-icon.png" />
     <link rel="stylesheet" href="styles.css" />
   </head>
@@ -46,8 +46,8 @@
           <span class="guide-category">
             <span>codex使用常见问题</span>
           </span>
-          <a class="guide-article" href="guide-windows-install.html">windows安装教程</a>
-          <a class="guide-article active" href="#overview">codex界面设置中文 教程</a>
+          <a class="guide-article active" href="#overview">windows安装教程</a>
+          <a class="guide-article" href="guide-codex-ui-chinese.html">codex界面设置中文 教程</a>
           <a class="guide-article" href="guide-computer-use-windows.html">windows 解决 codex 的 computer use 插件无法使用</a>
           <span class="guide-category">
             <span>codex实践操作</span>
@@ -61,56 +61,56 @@
           <span>/</span>
           <a href="guide.html">codex实战指南</a>
           <span>/</span>
-          <span>codex界面设置中文 教程</span>
+          <span>windows安装教程</span>
         </div>
 
         <section id="overview" class="guide-hero-section">
           <p class="eyebrow">codex使用常见问题</p>
-          <h1>codex界面设置中文 教程</h1>
-          <p>按下面步骤把 Codex 桌面端界面语言切换为中文。</p>
-          <figure>
-            <img src="assets/tutorial/codex-language-zh.jpg" alt="Codex 设置界面选择中文语言" />
-            <figcaption>在 General 页面找到 Language，选择中文后重启 Codex。</figcaption>
-          </figure>
+          <h1>windows安装教程</h1>
+          <p>下载 MSIX 后，正常 Windows 直接双击安装即可。</p>
         </section>
 
-        <section id="open-settings" class="guide-section">
-          <h2>1. 打开 Settings</h2>
-          <p>在 Codex 左下角点击账号菜单，选择 Settings。</p>
+        <section id="double-click" class="guide-section">
+          <h2>1. 正常安装</h2>
+          <p>下载 <code>Codex-Windows-x64.msix</code> 后，直接双击安装。</p>
         </section>
 
-        <section id="general" class="guide-section">
-          <h2>2. 进入 General</h2>
-          <p>在左侧设置菜单里选择 General。</p>
+        <section id="powershell" class="guide-section">
+          <h2>2. 双击安装失败时，用 PowerShell 安装</h2>
+          <p>如果你的系统 MSIX / AppX 安装链路还在，可以执行：</p>
+          <pre><code>Add-AppxPackage .\Codex-Windows-x64.msix</code></pre>
         </section>
 
-        <section id="language" class="guide-section">
-          <h2>3. 找到 Language</h2>
-          <p>在 General 页面向下找到 Language，点击当前语言下拉框。</p>
+        <section id="zip" class="guide-section">
+          <h2>3. AppX 服务被裁剪时，解压运行</h2>
+          <p>
+            如果你的 Windows 是企业内部定制版，Store 和 AppX 服务被裁得比较狠，可能无法正常安装。
+            这种情况下可以把 <code>.msix</code> 改成 <code>.zip</code>。
+          </p>
+          <ol>
+            <li>把 <code>Codex-Windows-x64.msix</code> 改名为 <code>Codex-Windows-x64.zip</code>。</li>
+            <li>解压 zip。</li>
+            <li>进入解压后的 <code>app</code> 目录。</li>
+            <li>直接运行 <code>Codex.exe</code>。</li>
+          </ol>
         </section>
 
-        <section id="select-chinese" class="guide-section">
-          <h2>4. 选择中文</h2>
-          <p>在语言列表里选择中文。截图里可以看到中文选项，例如中文（台湾）或中文（香港）。</p>
-        </section>
-
-        <section id="restart" class="guide-section">
-          <h2>5. 重启 Codex</h2>
-          <p>设置完成后，完全退出 Codex，再重新打开。</p>
-          <div class="manual-note warning-note">
-            如果重启后仍然没有生效，切换成科学上网环境后再次重启 Codex。
-          </div>
+        <section id="note" class="guide-section">
+          <h2>4. 说明</h2>
+          <p>
+            MSIX 本质上也是包，解压后直接运行通常没有太大兼容性问题。
+            但正常系统还是建议优先走双击安装或 <code>Add-AppxPackage</code> 安装流程。
+          </p>
         </section>
       </article>
 
       <aside class="guide-outline" aria-label="当前文章目录">
         <strong>当前文章</strong>
-        <a href="#overview">设置说明</a>
-        <a href="#open-settings">打开 Settings</a>
-        <a href="#general">进入 General</a>
-        <a href="#language">找到 Language</a>
-        <a href="#select-chinese">选择中文</a>
-        <a href="#restart">重启 Codex</a>
+        <a href="#overview">安装说明</a>
+        <a href="#double-click">正常安装</a>
+        <a href="#powershell">PowerShell 安装</a>
+        <a href="#zip">解压运行</a>
+        <a href="#note">说明</a>
       </aside>
     </main>
 
