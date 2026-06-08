@@ -17,6 +17,20 @@
 
 Codex Manager 是一个基于 Rust + Tauri 的 Codex 桌面管理器，用来集中管理 Codex API Key、NewAPI 账号、配置备份和启动增强能力。
 
+## 界面预览
+
+### 本地模式
+
+![本地模式 KEY 配置](./resources/screenshots/local-mode.png)
+
+### 登录配置
+
+![登录配置与远程 KEY](./resources/screenshots/login-config.png)
+
+### 远程 KEY 管理
+
+![远程 KEY 同步到本地管理](./resources/screenshots/remote-key-sync.png)
+
 ## 数据位置
 
 - 管理器设置：平台配置目录下的 `CodexManager/config.json`
